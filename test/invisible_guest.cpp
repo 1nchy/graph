@@ -47,8 +47,10 @@ int main() {
     EXPECT_EQ(_movie.vertices(), 6);
     EXPECT_EQ(_movie.edges(), 12);
 
-    _movie.connect("Doria", "Daniel", MURDER);
+    _movie.connect("Laura", "Daniel", MURDER);
     _movie.connect("Doria", "Laura", MURDER);
+    _movie.disconnect("Laura", "Daniel");
+    _movie.connect("Doria", "Daniel", MURDER);
     auto _range = _movie.get_edge("Doria", "Laura");
     unsigned _relationship = NONE;
     for (auto _i = _range.first; _i != _range.second; ++_i) {
@@ -56,9 +58,28 @@ int main() {
     }
     EXPECT_EQ(_relationship, LOVER | MURDER);
 
+    _movie.disconnect("Tomas", "Doria");
+    const auto _from_doria = _movie.dijkstra<unsigned>("Doria", [](const edge_type&) -> unsigned {
+        return 1u;
+    });
+    // "Doria" -> "Daniel" -> "Tomas"
+    EXPECT_EQ(_from_doria.at("Tomas")->in_key(), "Daniel");
+    EXPECT_EQ(_from_doria.at("Tomas")->value(), SON);
+    EXPECT_EQ(_from_doria.at("Daniel")->in_key(), "Doria");
+    EXPECT_EQ(_from_doria.at("Daniel")->value(), MURDER);
+    EXPECT_EQ(_movie.vertices(), 6);
+    EXPECT_EQ(_movie.edges(), 13);
+
     _movie.erase("Laura");
+    const auto _from_tomas = _movie.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
+        return 1u;
+    });
+    EXPECT_FALSE(_from_tomas.contains("Doria"));
+    EXPECT_EQ(_movie.vertices(), 5);
+    EXPECT_EQ(_movie.edges(), 9);
+
     _movie.erase("Daniel");
     EXPECT_EQ(_movie.vertices(), 4);
-    EXPECT_EQ(_movie.edges(), 5);
+    EXPECT_EQ(_movie.edges(), 4);
     return 0;
 }

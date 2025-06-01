@@ -6,6 +6,9 @@
 #include <unordered_set>
 
 #include <memory>
+#include <limits>
+#include <functional>
+#include <type_traits>
 
 namespace icy {
 
@@ -97,12 +100,15 @@ public:
     using const_iterator = typename std::unordered_multimap<key_type, edge_type*>::const_iterator;
 public:
     template <typename... _Args> vertex(_Args&&...);
-    vertex(const vertex&) = delete;
-    vertex(vertex&&) = default;
-    auto operator=(const vertex&) -> vertex& = delete;
-    auto operator=(vertex&&) -> vertex& = delete;
+    vertex(const vertex_type&) = delete;
+    vertex(vertex_type&&) = default;
+    auto operator=(const vertex_type&) -> vertex_type& = delete;
+    auto operator=(vertex_type&&) -> vertex_type& = delete;
     virtual ~vertex() = default;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph;
+public:
+    auto operator==(const vertex_type&) const -> bool;
+    auto operator!=(const vertex_type&) const -> bool;
 public:
     inline auto indegree() const -> size_t;
     inline auto outdegree() const -> size_t;
@@ -124,11 +130,13 @@ public:
     inline auto count_to(const key_type& _k) const -> size_t;
     /**
      * @brief edge range from `_k` to this
+     * @return iterator<key_type, edge_type*>
      */
     inline auto range_from(const key_type& _k) -> std::pair<iterator, iterator>;
     inline auto range_from(const key_type& _k) const -> std::pair<const_iterator, const_iterator>;
     /**
      * @brief edge range from this to `_k`
+     * @return iterator<key_type, edge_type*>
      */
     inline auto range_to(const key_type& _k) -> std::pair<iterator, iterator>;
     inline auto range_to(const key_type& _k) const -> std::pair<const_iterator, const_iterator>;
@@ -167,14 +175,19 @@ public:
     using key_type = typename vertex_type::key_type;
 public:
     template <typename... _Args> edge(const key_type&, vertex_type*, const key_type&, vertex_type*, _Args&&...);
-    edge(const edge&) = delete;
-    edge(edge&&) = default;
-    auto operator=(const edge&) -> edge& = delete;
-    auto operator=(edge&&) -> edge& = delete;
+    edge(const edge_type&) = delete;
+    edge(edge_type&&) = default;
+    auto operator=(const edge_type&) -> edge_type& = delete;
+    auto operator=(edge_type&&) -> edge_type& = delete;
     virtual ~edge() = default;
+public:
+    auto operator==(const edge_type&) const -> bool;
+    auto operator!=(const edge_type&) const -> bool;
 public:
     auto in() const -> const vertex_type&;
     auto out() const -> const vertex_type&;
+    auto in_key() const -> const key_type&;
+    auto out_key() const -> const key_type&;
 private:
     const std::pair<key_type, vertex_type*> _in;
     const std::pair<key_type, vertex_type*> _out;
@@ -183,6 +196,14 @@ private:
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> template <typename... _Args>
 vertex<_Vk, _Vv, _Ev, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
+vertex<_Vk, _Vv, _Ev, _Hash>::operator==(const vertex_type& _rhs) const -> bool {
+    return &_rhs == this;
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
+vertex<_Vk, _Vv, _Ev, _Hash>::operator!=(const vertex_type& _rhs) const -> bool {
+    return !operator==(_rhs);
+}
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
 vertex<_Vk, _Vv, _Ev, _Hash>::indegree() const -> size_t {
     return _in.size();
@@ -268,12 +289,28 @@ template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> template <ty
 edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
 base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
 template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> auto
+edge<_Ev, _Vk, _Vv, _Hash>::operator==(const edge_type& _rhs) const -> bool {
+    return &_rhs == this;
+}
+template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> auto
+edge<_Ev, _Vk, _Vv, _Hash>::operator!=(const edge_type& _rhs) const -> bool {
+    return !operator==(_rhs);
+}
+template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> auto
 edge<_Ev, _Vk, _Vv, _Hash>::in() const -> const vertex_type& {
     return *(_in.second);
 }
 template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> auto
 edge<_Ev, _Vk, _Vv, _Hash>::out() const -> const vertex_type& {
     return *(_out.second);
+}
+template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> auto
+edge<_Ev, _Vk, _Vv, _Hash>::in_key() const -> const key_type& {
+    return _in.first;
+}
+template <typename _Ev, typename _Vk, typename _Vv, typename _Hash> auto
+edge<_Ev, _Vk, _Vv, _Hash>::out_key() const -> const key_type& {
+    return _out.first;
 }
 
 
@@ -286,15 +323,19 @@ public:
     using key_type = typename vertex_type::key_type;
     using edge_iterator = typename vertex_type::iterator;
     using edge_const_iterator = typename vertex_type::const_iterator;
+    template <typename _R> using vertex_visitor = std::function<_R(const vertex_type&)>;
+    template <typename _R> using edge_visitor = std::function<_R(const edge_type&)>;
 public:
     inline auto vertices() const -> size_t;
     inline auto edges() const -> size_t;
     inline auto empty() const -> bool;
     inline auto contains(const key_type&) const -> bool;
-    auto get_vertex(const key_type&) -> vertex_type&;
-    auto get_vertex(const key_type&) const -> const vertex_type&;
-    auto get_edge(const key_type&, const key_type&) -> std::pair<edge_iterator, edge_iterator>;
-    auto get_edge(const key_type&, const key_type&) const -> std::pair<edge_const_iterator, edge_const_iterator>;
+    inline auto contains(const key_type&, const key_type&) const -> bool;
+    inline auto count(const key_type&, const key_type&) const -> size_t;
+    inline auto get_vertex(const key_type&) -> vertex_type&;
+    inline auto get_vertex(const key_type&) const -> const vertex_type&;
+    inline auto get_edge(const key_type&, const key_type&) -> std::pair<edge_iterator, edge_iterator>;
+    inline auto get_edge(const key_type&, const key_type&) const -> std::pair<edge_const_iterator, edge_const_iterator>;
     template <typename... _Args> auto insert(const key_type&, _Args&&...) -> void;
     auto erase(const key_type&) -> void;
     template <typename... _Args> auto connect(const key_type&, const key_type&, _Args&&...) -> void;
@@ -302,6 +343,14 @@ public:
     auto disconnect(const key_type&) -> void;
     auto disconnect(const key_type&, const key_type&) -> void;
     auto clear() -> void;
+public: // algorithm
+    /**
+     * @brief dijkstra algorithm
+     * @param _k start vertex key
+     * @param _visitor edge visitor, _R(*)(const edge_type&)
+     * @return predecessor edge for each vertex (exclude unreachable vertices)
+     */
+    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
 private:
     std::unordered_map<key_type, vertex_type*, _Hash> _vertices;
     std::unordered_set<edge_type*> _edges;
@@ -327,6 +376,14 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::contains(const key_type& _k) const -> bool 
     return _vertices.contains(_k);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::contains(const key_type& _x, const key_type& _y) const -> bool {
+    return contains(_x) && contains(_y) && get_vertex(_x)->contains_to(_y);
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::count(const key_type& _x, const key_type& _y) const -> size_t {
+    return (contains(_x) && contains(_y)) ? get_vertex(_x)->count_to(_y) : 0;
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_vertex(const key_type& _k) -> vertex_type& {
     return *_vertices.at(_k);
 }
@@ -336,13 +393,11 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_vertex(const key_type& _k) const -> con
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> std::pair<edge_iterator, edge_iterator> {
-    vertex_type* const _from = _vertices.at(_x);
-    return _from->range_to(_y);
+    return _vertices.at(_x)->range_to(_y);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) const -> std::pair<edge_const_iterator, edge_const_iterator> {
-    const vertex_type* const _from = _vertices.at(_x);
-    return _from->range_to(_y);
+    return _vertices.at(_x)->range_to(_y);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename... _Args> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::insert(const key_type& _k, _Args&&... _args) -> void {
@@ -403,8 +458,8 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::disconnect(const key_type& _x, const key_ty
         this->_M_deallocate_edge(_i->second);
     }
     // update vertex
-    get_vertex(_x)->erase_to(_y);
-    get_vertex(_y)->erase_from(_x);
+    get_vertex(_x).erase_to(_y);
+    get_vertex(_y).erase_from(_x);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::clear() -> void {
@@ -416,6 +471,54 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::clear() -> void {
     }
     _vertices.clear();
     _edges.clear();
+}
+
+
+/// algorithm implement
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*> {
+    using cost_type = _R;
+    static_assert(std::is_arithmetic<cost_type>::value);
+    if (!contains(_k)) { return {}; }
+    std::unordered_set<key_type> _u; // _s({_k});
+    for (const auto& [_k, _v] : _vertices) {
+        _u.insert(_k);
+    }
+    _u.erase(_k);
+    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`, always greater ordered
+    _costs.reserve(_u.size());
+    for (const auto& _k : _u) {
+        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _k);
+    }
+    std::unordered_map<key_type, const edge_type*> _predecessor;
+    const vertex_type* _vertex = &get_vertex(_k);
+    while (!_u.empty()) {
+        // update `_costs` and `_predecessor`
+        for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
+            const auto _out = _vertex->range_to(_i->second);
+            // update cost from `_vertex` to `_i->second`
+            for (auto _j = _out.first; _j != _out.second; ++_j) {
+                const cost_type _cost = _visitor(*_j->second);
+                if (_i->first > _cost) {
+                    _i->first = _cost;
+                    _predecessor[_i->second] = _j->second;
+                }
+            }
+        }
+        std::sort(_costs.begin(), _costs.end(), [](const auto& _x, const auto& _y) {
+            return _x.first > _y.first;
+        });
+        // choose lowest one (check max)
+        if (_costs.back().first == std::numeric_limits<cost_type>::max()) {
+            break;
+        }
+        const key_type& _k = _costs.back().second;
+        // update `_vertex`, erase from `_u` and `_costs`
+        _vertex = &get_vertex(_k);
+        _u.erase(_k);
+        _costs.pop_back();
+    }
+    return _predecessor;
 }
 
 }
