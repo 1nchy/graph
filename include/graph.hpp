@@ -23,6 +23,8 @@ public:
     storage(const storage&) = default;
     virtual ~storage() = default;
 public:
+    auto operator==(const storage& _rhs) const -> bool { return _v == _rhs._v; }
+    auto operator!=(const storage& _rhs) const -> bool { return _v != _rhs._v; }
     inline auto value() -> value_type& { return _v; }
     inline auto value() const -> const value_type& { return _v; }
     inline auto set_value(const value_type& _v) -> void { this->_v = _v; }
@@ -36,6 +38,9 @@ public:
     storage() = default;
     storage(const storage&) = default;
     virtual ~storage() = default;
+public:
+    auto operator==(const storage& _rhs) const -> bool { return true; }
+    auto operator!=(const storage& _rhs) const -> bool { return false; }
 };
 }
 
@@ -107,43 +112,43 @@ public:
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct multigraph;
 public:
-    auto operator==(const vertex_type&) const -> bool;
-    auto operator!=(const vertex_type&) const -> bool;
+    auto operator==(const vertex_type& _rhs) const -> bool { return base::operator==(_rhs); }
+    auto operator!=(const vertex_type& _rhs) const -> bool { return base::operator!=(_rhs); }
 public:
-    inline auto indegree() const -> size_t;
-    inline auto outdegree() const -> size_t;
+    inline auto indegree() const -> size_t { return _in.size(); }
+    inline auto outdegree() const -> size_t { return _out.size(); }
     /**
      * @brief contains edge from `_k` to this
      */
-    inline auto contains_from(const key_type& _k) const -> bool;
+    inline auto contains_from(const key_type& _k) const -> bool { return _in.contains(_k); }
     /**
      * @brief contains edge from this to `_k`
      */
-    inline auto contains_to(const key_type& _k) const -> bool;
+    inline auto contains_to(const key_type& _k) const -> bool { return _out.contains(_k); }
     /**
      * @brief count edge from `_k` to this
      */
-    inline auto count_from(const key_type& _k) const -> size_t;
+    inline auto count_from(const key_type& _k) const -> size_t { return _in.count(_k); }
     /**
      * @brief count edge from this to `_k`
      */
-    inline auto count_to(const key_type& _k) const -> size_t;
+    inline auto count_to(const key_type& _k) const -> size_t { return _out.count(_k); }
     /**
      * @brief edge range from `_k` to this
      * @return iterator<key_type, edge_type*>
      */
-    inline auto edge_from(const key_type& _k) -> std::pair<iterator, iterator>;
-    inline auto edge_from(const key_type& _k) const -> std::pair<const_iterator, const_iterator>;
+    inline auto edge_from(const key_type& _k) -> std::pair<iterator, iterator> { return _in.equal_range(_k); }
+    inline auto edge_from(const key_type& _k) const -> std::pair<const_iterator, const_iterator> { return _in.equal_range(_k); }
     /**
      * @brief edge range from this to `_k`
      * @return iterator<key_type, edge_type*>
      */
-    inline auto edge_to(const key_type& _k) -> std::pair<iterator, iterator>;
-    inline auto edge_to(const key_type& _k) const -> std::pair<const_iterator, const_iterator>;
-    inline auto in() -> std::pair<iterator, iterator>;
-    inline auto in() const -> std::pair<const_iterator, const_iterator>;
-    inline auto out() -> std::pair<iterator, iterator>;
-    inline auto out() const -> std::pair<const_iterator, const_iterator>;
+    inline auto edge_to(const key_type& _k) -> std::pair<iterator, iterator> { return _out.equal_range(_k); }
+    inline auto edge_to(const key_type& _k) const -> std::pair<const_iterator, const_iterator> { return _out.equal_range(_k); }
+    inline auto in() -> std::pair<iterator, iterator> { return std::make_pair(_in.begin(), _in.end()); }
+    inline auto in() const -> std::pair<const_iterator, const_iterator> { return std::make_pair(_in.cbegin(), _in.cend()); }
+    inline auto out() -> std::pair<iterator, iterator> { return std::make_pair(_out.begin(), _out.end()); }
+    inline auto out() const -> std::pair<const_iterator, const_iterator> { return std::make_pair(_out.cbegin(), _out.cend()); }
 private:
     /**
      * @brief insert edge from `_k` to this
@@ -156,12 +161,12 @@ private:
     /**
      * @brief erase edge from `_k` to this
      */
-    inline auto erase_from(const key_type& _k) -> size_t;
+    inline auto erase_from(const key_type& _k) -> size_t { return _in.erase(_k); }
     /**
      * @brief erase edge from this to `_k`
      */
-    inline auto erase_to(const key_type& _k) -> size_t;
-    inline auto clear() -> void;
+    inline auto erase_to(const key_type& _k) -> size_t { return _out.erase(_k); }
+    inline auto clear() -> void { _in.clear(); _out.clear(); }
 private:
     std::unordered_multimap<key_type, edge_type*, _Hash> _in;
     std::unordered_multimap<key_type, edge_type*, _Hash> _out;
@@ -186,43 +191,43 @@ public:
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct multigraph;
 public:
-    auto operator==(const vertex_type&) const -> bool;
-    auto operator!=(const vertex_type&) const -> bool;
+    auto operator==(const vertex_type& _rhs) const -> bool { return base::operator==(_rhs); }
+    auto operator!=(const vertex_type& _rhs) const -> bool { return base::operator!=(_rhs); }
 public:
-    inline auto indegree() const -> size_t;
-    inline auto outdegree() const -> size_t;
+    inline auto indegree() const -> size_t { return _in.size(); }
+    inline auto outdegree() const -> size_t { return _out.size(); }
     /**
      * @brief contains edge from `_k` to this
      */
-    inline auto contains_from(const key_type& _k) const -> bool;
+    inline auto contains_from(const key_type& _k) const -> bool { return _in.contains(_k); }
     /**
      * @brief contains edge from this to `_k`
      */
-    inline auto contains_to(const key_type& _k) const -> bool;
+    inline auto contains_to(const key_type& _k) const -> bool { return _out.contains(_k); }
     /**
      * @brief count edge from `_k` to this
      */
-    inline auto count_from(const key_type& _k) const -> size_t;
+    inline auto count_from(const key_type& _k) const -> size_t { return _in.count(_k); }
     /**
      * @brief count edge from this to `_k`
      */
-    inline auto count_to(const key_type& _k) const -> size_t;
+    inline auto count_to(const key_type& _k) const -> size_t { return _out.count(_k); }
     /**
      * @brief edge range from `_k` to this
      * @return iterator<key_type, edge_type*>
      */
-    inline auto edge_from(const key_type& _k) -> edge_type*;
-    inline auto edge_from(const key_type& _k) const -> const edge_type*;
+    inline auto edge_from(const key_type& _k) -> edge_type* { return _in.contains(_k) ? _in.at(_k) : nullptr; }
+    inline auto edge_from(const key_type& _k) const -> const edge_type* { return _in.contains(_k) ? _in.at(_k) : nullptr; }
     /**
      * @brief edge range from this to `_k`
      * @return iterator<key_type, edge_type*>
      */
-    inline auto edge_to(const key_type& _k) -> edge_type*;
-    inline auto edge_to(const key_type& _k) const -> const edge_type*;
-    inline auto in() -> std::pair<iterator, iterator>;
-    inline auto in() const -> std::pair<const_iterator, const_iterator>;
-    inline auto out() -> std::pair<iterator, iterator>;
-    inline auto out() const -> std::pair<const_iterator, const_iterator>;
+    inline auto edge_to(const key_type& _k) -> edge_type* { return _out.contains(_k) ? _out.at(_k) : nullptr; }
+    inline auto edge_to(const key_type& _k) const -> const edge_type* { return _out.contains(_k) ? _out.at(_k) : nullptr; }
+    inline auto in() -> std::pair<iterator, iterator> { return std::make_pair(_in.begin(), _in.end()); }
+    inline auto in() const -> std::pair<const_iterator, const_iterator> { return std::make_pair(_in.cbegin(), _in.cend()); }
+    inline auto out() -> std::pair<iterator, iterator> { return std::make_pair(_out.begin(), _out.end()); }
+    inline auto out() const -> std::pair<const_iterator, const_iterator> { return std::make_pair(_out.cbegin(), _out.cend()); }
 private:
     /**
      * @brief insert edge from `_k` to this
@@ -235,12 +240,12 @@ private:
     /**
      * @brief erase edge from `_k` to this
      */
-    inline auto erase_from(const key_type& _k) -> size_t;
+    inline auto erase_from(const key_type& _k) -> size_t { return _in.erase(_k); }
     /**
      * @brief erase edge from this to `_k`
      */
-    inline auto erase_to(const key_type& _k) -> size_t;
-    inline auto clear() -> void;
+    inline auto erase_to(const key_type& _k) -> size_t { return _out.erase(_k); }
+    inline auto clear() -> void { _in.clear(); _out.clear(); }
 private:
     std::unordered_map<key_type, edge_type*, _Hash> _in;
     std::unordered_map<key_type, edge_type*, _Hash> _out;
@@ -260,13 +265,13 @@ public:
     auto operator=(edge_type&&) -> edge_type& = delete;
     virtual ~edge() = default;
 public:
-    auto operator==(const edge_type&) const -> bool;
-    auto operator!=(const edge_type&) const -> bool;
+    auto operator==(const edge_type& _rhs) const -> bool { return base::operator==(_rhs); }
+    auto operator!=(const edge_type& _rhs) const -> bool { return base::operator!=(_rhs); }
 public:
-    auto in() const -> const vertex_type&;
-    auto out() const -> const vertex_type&;
-    auto in_key() const -> const key_type&;
-    auto out_key() const -> const key_type&;
+    auto in() const -> const vertex_type& { return *_in.second; }
+    auto out() const -> const vertex_type& { return *_out.second; }
+    auto in_key() const -> const key_type& { return _in.first; }
+    auto out_key() const -> const key_type& { return _out.first; }
 private:
     const std::pair<key_type, vertex_type*> _in;
     const std::pair<key_type, vertex_type*> _out;
@@ -275,70 +280,6 @@ private:
 // vertex<true> public implement
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> template <typename... _Args>
 vertex<_Vk, true, _Vv, _Ev, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::operator==(const vertex_type& _rhs) const -> bool {
-    return &_rhs == this;
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::operator!=(const vertex_type& _rhs) const -> bool {
-    return !operator==(_rhs);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::indegree() const -> size_t {
-    return _in.size();
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::outdegree() const -> size_t {
-    return _out.size();
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::contains_from(const key_type& _k) const -> bool {
-    return _in.contains(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::contains_to(const key_type& _k) const -> bool {
-    return _out.contains(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::count_from(const key_type& _k) const -> size_t {
-    return _in.count(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::count_to(const key_type& _k) const -> size_t {
-    return _out.count(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::edge_from(const key_type& _k) -> std::pair<iterator, iterator> {
-    return _in.equal_range(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::edge_from(const key_type& _k) const -> std::pair<const_iterator, const_iterator> {
-    return _in.equal_range(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::edge_to(const key_type& _k) -> std::pair<iterator, iterator> {
-    return _out.equal_range(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::edge_to(const key_type& _k) const -> std::pair<const_iterator, const_iterator> {
-    return _out.equal_range(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::in() -> std::pair<iterator, iterator> {
-    return std::make_pair(_in.begin(), _in.end());
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::in() const -> std::pair<const_iterator, const_iterator> {
-    return std::make_pair(_in.cbegin(), _in.cend());
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::out() -> std::pair<iterator, iterator> {
-    return std::make_pair(_out.begin(), _out.end());
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::out() const -> std::pair<const_iterator, const_iterator> {
-    return std::make_pair(_out.cbegin(), _out.cend());
-}
 // vertex<true> private implement
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
 vertex<_Vk, true, _Vv, _Ev, _Hash>::insert_from(const key_type& _k, edge_type* const _e) -> size_t {
@@ -350,86 +291,10 @@ vertex<_Vk, true, _Vv, _Ev, _Hash>::insert_to(const key_type& _k, edge_type* con
     _out.insert({_k, _e});
     return _out.count(_k);
 }
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::erase_from(const key_type& _k) -> size_t {
-    return _in.erase(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::erase_to(const key_type& _k) -> size_t {
-    return _out.erase(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::clear() -> void {
-    _in.clear(); _out.clear();
-}
 
 // vertex<false> public implement
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> template <typename... _Args>
 vertex<_Vk, false, _Vv, _Ev, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::operator==(const vertex_type& _rhs) const -> bool {
-    return &_rhs == this;
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::operator!=(const vertex_type& _rhs) const -> bool {
-    return !operator==(_rhs);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::indegree() const -> size_t {
-    return _in.size();
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::outdegree() const -> size_t {
-    return _out.size();
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::contains_from(const key_type& _k) const -> bool {
-    return _in.contains(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::contains_to(const key_type& _k) const -> bool {
-    return _out.contains(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::count_from(const key_type& _k) const -> size_t {
-    return _in.count(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::count_to(const key_type& _k) const -> size_t {
-    return _out.count(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::edge_from(const key_type& _k) -> edge_type* {
-    return _in.contains(_k) ? _in.at(_k) : nullptr;
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::edge_from(const key_type& _k) const -> const edge_type* {
-    return _in.contains(_k) ? _in.at(_k) : nullptr;
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::edge_to(const key_type& _k) -> edge_type* {
-    return _out.contains(_k) ? _out.at(_k) : nullptr;
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::edge_to(const key_type& _k) const -> const edge_type* {
-    return _out.contains(_k) ? _out.at(_k) : nullptr;
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::in() -> std::pair<iterator, iterator> {
-    return std::make_pair(_in.begin(), _in.end());
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::in() const -> std::pair<const_iterator, const_iterator> {
-    return std::make_pair(_in.cbegin(), _in.cend());
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::out() -> std::pair<iterator, iterator> {
-    return std::make_pair(_out.begin(), _out.end());
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::out() const -> std::pair<const_iterator, const_iterator> {
-    return std::make_pair(_out.cbegin(), _out.cend());
-}
 // vertex<false> private implement
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
 vertex<_Vk, false, _Vv, _Ev, _Hash>::insert_from(const key_type& _k, edge_type* const _e) -> size_t {
@@ -441,46 +306,10 @@ vertex<_Vk, false, _Vv, _Ev, _Hash>::insert_to(const key_type& _k, edge_type* co
     _out[_k] = _e;
     return _out.count(_k);
 }
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::erase_from(const key_type& _k) -> size_t {
-    return _in.erase(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::erase_to(const key_type& _k) -> size_t {
-    return _out.erase(_k);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::clear() -> void {
-    _in.clear(); _out.clear();
-}
 
 template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> template <typename... _Args> edge<_Ev, _Vk, _Multi, _Vv, _Hash>::
 edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
 base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> auto
-edge<_Ev, _Vk, _Multi, _Vv, _Hash>::operator==(const edge_type& _rhs) const -> bool {
-    return &_rhs == this;
-}
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> auto
-edge<_Ev, _Vk, _Multi, _Vv, _Hash>::operator!=(const edge_type& _rhs) const -> bool {
-    return !operator==(_rhs);
-}
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> auto
-edge<_Ev, _Vk, _Multi, _Vv, _Hash>::in() const -> const vertex_type& {
-    return *(_in.second);
-}
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> auto
-edge<_Ev, _Vk, _Multi, _Vv, _Hash>::out() const -> const vertex_type& {
-    return *(_out.second);
-}
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> auto
-edge<_Ev, _Vk, _Multi, _Vv, _Hash>::in_key() const -> const key_type& {
-    return _in.first;
-}
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> auto
-edge<_Ev, _Vk, _Multi, _Vv, _Hash>::out_key() const -> const key_type& {
-    return _out.first;
-}
 
 
 namespace {
@@ -527,17 +356,17 @@ public:
         if (!contains(_k)) { return; }
         vertex_type& _vertex = get_vertex(_k);
         // erase edges, update other vertices
-        const auto _in_range = _vertex.in();
-        for (auto _i = _in_range.first; _i != _in_range.second; ++_i) {
-            get_vertex(_i->first).erase_to(_k);
-            _edges.erase(_i->second);
-            this->_M_deallocate_edge(_i->second);
+        const auto _ins = _vertex.in();
+        for (auto _in = _ins.first; _in != _ins.second; ++_in) {
+            get_vertex(_in->first).erase_to(_k);
+            _edges.erase(_in->second);
+            this->_M_deallocate_edge(_in->second);
         }
-        const auto _out_range = _vertex.out();
-        for (auto _i = _out_range.first; _i != _out_range.second; ++_i) {
-            get_vertex(_i->first).erase_from(_k);
-            _edges.erase(_i->second);
-            this->_M_deallocate_edge(_i->second);
+        const auto _outs = _vertex.out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            get_vertex(_out->first).erase_from(_k);
+            _edges.erase(_out->second);
+            this->_M_deallocate_edge(_out->second);
         }
         // update vertex
         _vertex.clear();
@@ -577,6 +406,9 @@ public:
     graph(const graph&);
     auto operator=(const graph&) -> graph&;
     virtual ~graph() = default;
+public:
+    auto operator==(const graph&) const -> bool;
+    auto operator!=(const graph&) const -> bool;
 public:
     auto get_edge(const key_type&, const key_type&) -> edge_type*;
     auto get_edge(const key_type&, const key_type&) const -> const edge_type*;
@@ -619,6 +451,9 @@ public:
     auto operator=(const multigraph&) -> multigraph&;
     virtual ~multigraph() = default;
 public:
+    auto operator==(const multigraph&) const -> bool;
+    auto operator!=(const multigraph&) const -> bool;
+public:
     auto get_edge(const key_type&, const key_type&) -> std::pair<iterator, iterator>;
     auto get_edge(const key_type&, const key_type&) const -> std::pair<const_iterator, const_iterator>;
     template <typename... _Args> auto connect(const key_type&, const key_type&, _Args&&...) -> void;
@@ -648,6 +483,39 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const graph& _rhs) -> graph& {
     this->clear();
     _M_assign(_rhs);
     return *this;
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const graph& _rhs) const -> bool {
+    if (this->vertices() != _rhs.vertices() || this->edges() != _rhs.edges()) {
+        return false;
+    }
+    std::queue<key_type> _remains;
+    for (const auto& [_k, _v] : _rhs._vertices) {
+        if (!this->contains(_k)) {
+            return false;
+        }
+        const vertex_type& _vertex = this->get_vertex(_k);
+        const vertex_type& _rhs_vertex = _rhs.get_vertex(_k);
+        if (_vertex != _rhs_vertex || _vertex.indegree() != _rhs_vertex.indegree() || _vertex.outdegree() != _rhs_vertex.outdegree()) {
+            return false;
+        }
+        _remains.push(_k);
+    }
+    while (!_remains.empty()) {
+        const key_type& _k = _remains.front(); _remains.pop();
+        const auto _outs = _rhs.get_vertex(_k).out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            const edge_type* _e = this->get_edge(_k, _out->first);
+            if (_e == nullptr || *_e != *_out->second) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const graph& _rhs) const -> bool {
+    return !this->operator==(_rhs);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> edge_type* {
@@ -697,12 +565,12 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const graph& _rhs) -> void {
         if (!this->contains(_k)) {
             this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
         }
-        const auto _out = _rhs.get_vertex(_k).out();
-        for (auto _o = _out.first; _o != _out.second; ++_o) {
-            if (!this->contains(_o->first)) {
-                this->insert(_o->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_o->first)));
+        const auto _outs = _rhs.get_vertex(_k).out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            if (!this->contains(_out->first)) {
+                this->insert(_out->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_out->first)));
             }
-            this->connect(_k, _o->first, static_cast<const typename edge_type::base&>(*_o->second));
+            this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
         }
     }
 }
@@ -718,6 +586,41 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const multigraph& _rhs) -> m
     this->clear();
     _M_assign(_rhs);
     return *this;
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const multigraph& _rhs) const -> bool {
+    if (this->vertices() != _rhs.vertices() || this->edges() != _rhs.edges()) {
+        return false;
+    }
+    std::queue<key_type> _remains;
+    for (const auto& [_k, _v] : _rhs._vertices) {
+        if (!this->contains(_k)) {
+            return false;
+        }
+        const vertex_type& _vertex = this->get_vertex(_k);
+        const vertex_type& _rhs_vertex = _rhs.get_vertex(_k);
+        if (_vertex != _rhs_vertex || _vertex.indegree() != _rhs_vertex.indegree() || _vertex.outdegree() != _rhs_vertex.outdegree()) {
+            return false;
+        }
+        _remains.push(_k);
+    }
+    while (!_remains.empty()) {
+        const key_type& _k = _remains.front(); _remains.pop();
+        const auto _outs = _rhs.get_vertex(_k).out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            const auto _edges = this->get_edge(_k, _out->first);
+            if (std::none_of(_edges.first, _edges.second, [_out](const auto& _iter) {
+                return *_out->second == *_iter.second;
+            })) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const multigraph& _rhs) const -> bool {
+    return !this->operator==(_rhs);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> std::pair<iterator, iterator> {
@@ -767,12 +670,12 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const multigraph& _rhs) -> v
         if (!this->contains(_k)) {
             this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
         }
-        const auto _out = _rhs.get_vertex(_k).out();
-        for (auto _o = _out.first; _o != _out.second; ++_o) {
-            if (!this->contains(_o->first)) {
-                this->insert(_o->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_o->first)));
+        const auto _outs = _rhs.get_vertex(_k).out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            if (!this->contains(_out->first)) {
+                this->insert(_out->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_out->first)));
             }
-            this->connect(_k, _o->first, static_cast<const typename edge_type::base&>(*_o->second));
+            this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
         }
     }
 }

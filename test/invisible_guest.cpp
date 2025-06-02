@@ -70,6 +70,7 @@ int main() {
     EXPECT_EQ(_movie.edges(), 13);
 
     auto _movie_alive = _movie;
+    EXPECT_EQ(_movie, _movie_alive);
 
     _movie_alive.erase("Laura");
     const auto _from_tomas = _movie_alive.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
@@ -82,5 +83,8 @@ int main() {
     _movie_alive.erase("Daniel");
     EXPECT_EQ(_movie_alive.vertices(), 4);
     EXPECT_EQ(_movie_alive.edges(), 4);
+
+    EXPECT_NQ(_movie, _movie_alive);
+
     return 0;
 }

@@ -98,12 +98,15 @@ int main() {
     EXPECT_EQ(_biosphere.get_vertex("lark").indegree(), 5);
     EXPECT_EQ(_biosphere.get_vertex("lark").outdegree(), 3);
 
-    auto _biosphere_backup = _biosphere;
-    _biosphere_backup.erase("insect");
-    EXPECT_EQ(_biosphere_backup.vertices(), 7);
-    EXPECT_EQ(_biosphere_backup.edges(), 14);
-    EXPECT_EQ(_biosphere_backup.get_edge("parasite", "rabbit"), nullptr);
-    EXPECT_EQ(_biosphere_backup.get_edge("parasite", "fox")->value(), PARASITISM);
+    auto _biosphere_without_insect = _biosphere;
+    EXPECT_EQ(_biosphere, _biosphere_without_insect);
+
+    _biosphere_without_insect.erase("insect");
+    EXPECT_EQ(_biosphere_without_insect.vertices(), 7);
+    EXPECT_EQ(_biosphere_without_insect.edges(), 14);
+    EXPECT_EQ(_biosphere_without_insect.get_edge("parasite", "rabbit"), nullptr);
+    EXPECT_EQ(_biosphere_without_insect.get_edge("parasite", "fox")->value(), PARASITISM);
+    EXPECT_NQ(_biosphere, _biosphere_without_insect);
 
     return 0;
 }
