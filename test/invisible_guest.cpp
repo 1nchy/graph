@@ -4,7 +4,6 @@
 
 #include <string>
 #include <vector>
-#include <queue>
 
 enum relation_type : unsigned {
     NONE = 0x0,
@@ -21,7 +20,7 @@ enum relation_type : unsigned {
 
 int main() {
     // vertex<name, alive>
-    icy::graph<std::string, bool, relation_type> _movie;
+    icy::multigraph<std::string, bool, relation_type> _movie;
     using vertex_type = typename decltype(_movie)::vertex_type;
     using edge_type = typename decltype(_movie)::edge_type;
     _movie.insert("Doria", true);

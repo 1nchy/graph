@@ -20,3 +20,4 @@ macro(icy_add_test case_name)
 endmacro(icy_add_test)
 
 icy_add_test(invisible_guest)
+icy_add_test(food_chain)
