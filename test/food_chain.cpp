@@ -5,8 +5,6 @@
 #include <string>
 #include <queue>
 
-#include <iostream>
-
 enum relation_type {
     PREDATION, // 捕食
     MUTUALISM, // 互利共生
@@ -100,9 +98,12 @@ int main() {
     EXPECT_EQ(_biosphere.get_vertex("lark").indegree(), 5);
     EXPECT_EQ(_biosphere.get_vertex("lark").outdegree(), 3);
 
-    _biosphere.erase("insect");
-    EXPECT_EQ(_biosphere.vertices(), 7);
-    EXPECT_EQ(_biosphere.edges(), 14);
+    auto _biosphere_backup = _biosphere;
+    _biosphere_backup.erase("insect");
+    EXPECT_EQ(_biosphere_backup.vertices(), 7);
+    EXPECT_EQ(_biosphere_backup.edges(), 14);
+    EXPECT_EQ(_biosphere_backup.get_edge("parasite", "rabbit"), nullptr);
+    EXPECT_EQ(_biosphere_backup.get_edge("parasite", "fox")->value(), PARASITISM);
 
     return 0;
 }

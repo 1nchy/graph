@@ -2,6 +2,7 @@
 #define _ICY_GRAPH_HPP_
 
 #include <vector>
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -573,6 +574,8 @@ public:
     template <typename _R> using edge_visitor = typename base::edge_visitor<_R>;
 public:
     graph() = default;
+    graph(const graph&);
+    auto operator=(const graph&) -> graph&;
     virtual ~graph() = default;
 public:
     auto get_edge(const key_type&, const key_type&) -> edge_type*;
@@ -588,6 +591,8 @@ public: // algorithm
      * @return predecessor edge for each vertex (exclude unreachable vertices)
      */
     template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
+private:
+    auto _M_assign(const graph&) -> void;
 };
 /**
  * @brief multi directed graph
@@ -609,6 +614,9 @@ private:
     using const_iterator = typename vertex_type::const_iterator;
 public:
     multigraph() = default;
+    // template <typename __Hash, typename __Alloc> multigraph(const graph<_Vk, _Vv, _Ev, __Hash, __Alloc>&);
+    multigraph(const multigraph&);
+    auto operator=(const multigraph&) -> multigraph&;
     virtual ~multigraph() = default;
 public:
     auto get_edge(const key_type&, const key_type&) -> std::pair<iterator, iterator>;
@@ -624,9 +632,23 @@ public: // algorithm
      * @return predecessor edge for each vertex (exclude unreachable vertices)
      */
     template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
+private:
+    auto _M_assign(const multigraph&) -> void;
 };
 
 
+
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::graph(const graph& _rhs) {
+    _M_assign(_rhs);
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const graph& _rhs) -> graph& {
+    if (&_rhs == this) { return *this; }
+    this->clear();
+    _M_assign(_rhs);
+    return *this;
+}
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> edge_type* {
     return this->get_vertex(_x).edge_to(_y);
@@ -663,7 +685,40 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::disconnect(const key_type& _x, const key_ty
     this->get_vertex(_x).erase_to(_y);
     this->get_vertex(_y).erase_from(_x);
 }
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const graph& _rhs) -> void {
+    assert(this->empty());
+    std::queue<key_type> _remains;
+    for (const auto& [_k, _v] : _rhs._vertices) {
+        _remains.push(_k);
+    }
+    while (!_remains.empty()) {
+        const key_type& _k = _remains.front(); _remains.pop();
+        if (!this->contains(_k)) {
+            this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
+        }
+        const auto _out = _rhs.get_vertex(_k).out();
+        for (auto _o = _out.first; _o != _out.second; ++_o) {
+            if (!this->contains(_o->first)) {
+                this->insert(_o->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_o->first)));
+            }
+            this->connect(_k, _o->first, static_cast<const typename edge_type::base&>(*_o->second));
+        }
+    }
+}
 
+
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const multigraph& _rhs) {
+    _M_assign(_rhs);
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const multigraph& _rhs) -> multigraph& {
+    if (&_rhs == this) { return *this; }
+    this->clear();
+    _M_assign(_rhs);
+    return *this;
+}
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> std::pair<iterator, iterator> {
     return this->get_vertex(_x).edge_to(_y);
@@ -700,6 +755,28 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::disconnect(const key_type& _x, const k
     this->get_vertex(_x).erase_to(_y);
     this->get_vertex(_y).erase_from(_x);
 }
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const multigraph& _rhs) -> void {
+    assert(this->empty());
+    std::queue<key_type> _remains;
+    for (const auto& [_k, _v] : _rhs._vertices) {
+        _remains.push(_k);
+    }
+    while (!_remains.empty()) {
+        const key_type& _k = _remains.front(); _remains.pop();
+        if (!this->contains(_k)) {
+            this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
+        }
+        const auto _out = _rhs.get_vertex(_k).out();
+        for (auto _o = _out.first; _o != _out.second; ++_o) {
+            if (!this->contains(_o->first)) {
+                this->insert(_o->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_o->first)));
+            }
+            this->connect(_k, _o->first, static_cast<const typename edge_type::base&>(*_o->second));
+        }
+    }
+}
+
 
 /// algorithm implement
 template <typename _Vk,typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto

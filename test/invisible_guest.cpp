@@ -69,16 +69,18 @@ int main() {
     EXPECT_EQ(_movie.vertices(), 6);
     EXPECT_EQ(_movie.edges(), 13);
 
-    _movie.erase("Laura");
-    const auto _from_tomas = _movie.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
+    auto _movie_alive = _movie;
+
+    _movie_alive.erase("Laura");
+    const auto _from_tomas = _movie_alive.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
         return 1u;
     });
     EXPECT_FALSE(_from_tomas.contains("Doria"));
-    EXPECT_EQ(_movie.vertices(), 5);
-    EXPECT_EQ(_movie.edges(), 9);
+    EXPECT_EQ(_movie_alive.vertices(), 5);
+    EXPECT_EQ(_movie_alive.edges(), 9);
 
-    _movie.erase("Daniel");
-    EXPECT_EQ(_movie.vertices(), 4);
-    EXPECT_EQ(_movie.edges(), 4);
+    _movie_alive.erase("Daniel");
+    EXPECT_EQ(_movie_alive.vertices(), 4);
+    EXPECT_EQ(_movie_alive.edges(), 4);
     return 0;
 }
