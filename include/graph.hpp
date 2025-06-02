@@ -339,6 +339,8 @@ public:
     inline auto get_vertex(const key_type& _k) const -> const vertex_type& { return *_vertices.at(_k); }
     inline auto begin() { return _vertices.begin(); }
     inline auto end() { return _vertices.end(); }
+    inline auto begin() const { return _vertices.begin(); }
+    inline auto end() const { return _vertices.end(); }
     inline auto cbegin() const { return _vertices.cbegin(); }
     inline auto cend() const { return _vertices.cend(); }
     template <typename... _Args> auto insert(const key_type& _k, _Args&&... _args) -> void {
@@ -446,7 +448,7 @@ private:
     using const_iterator = typename vertex_type::const_iterator;
 public:
     multigraph() = default;
-    // template <typename __Hash, typename __Alloc> multigraph(const graph<_Vk, _Vv, _Ev, __Hash, __Alloc>&);
+    template <typename __Hash, typename __Alloc> multigraph(const graph<_Vk, _Vv, _Ev, __Hash, __Alloc>&);
     multigraph(const multigraph&);
     auto operator=(const multigraph&) -> multigraph&;
     virtual ~multigraph() = default;
@@ -576,6 +578,26 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const graph& _rhs) -> void {
 }
 
 
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename __Hash, typename __Alloc>
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const graph<_Vk, _Vv, _Ev, __Hash, __Alloc>& _rhs) {
+    std::queue<key_type> _remains;
+    for (const auto& [_k, _v] : _rhs) {
+        _remains.push(_k);
+    }
+    while (!_remains.empty()) {
+        const key_type& _k = _remains.front(); _remains.pop();
+        if (!this->contains(_k)) {
+            this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
+        }
+        const auto _outs = _rhs.get_vertex(_k).out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            if (!this->contains(_out->first)) {
+                this->insert(_out->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_out->first)));
+            }
+            this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
+        }
+    }
+}
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const multigraph& _rhs) {
     _M_assign(_rhs);
