@@ -23,6 +23,7 @@ int main() {
     icy::multigraph<std::string, bool, relation_type> _movie;
     using vertex_type = typename decltype(_movie)::vertex_type;
     using edge_type = typename decltype(_movie)::edge_type;
+    using key_type = typename decltype(_movie)::key_type;
     _movie.insert("Doria", true);
     _movie.insert("Laura", true);
     _movie.insert("Goodman", true);
@@ -85,6 +86,28 @@ int main() {
     EXPECT_EQ(_movie_alive.edges(), 4);
 
     EXPECT_NQ(_movie, _movie_alive);
+
+    const auto _floyd = _movie.floyd<unsigned>([](const edge_type&) -> unsigned {
+        return 1u;
+    });
+    std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
+    [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
+        assert(_floyd.contains(_i) && _floyd.contains(_j));
+        if (!_floyd.adjacent(_i, _j)) { return {}; }
+        if (_i == _j) { return {_i}; }
+        const key_type& _k = _floyd.get_edge(_i, _j)->value();
+        assert(_k != _j);
+        if (_i == _k) { return {_i, _j}; }
+        auto _front = get_trace(_i, _k);
+        auto _back = get_trace(_k, _j);
+        assert(!_front.empty() && !_back.empty());
+        assert(_front.back() == _back.front());
+        _front.insert(_front.end(), _back.begin() + 1, _back.end());
+        return _front;
+    };
+    const auto _trace = get_trace("Daniel", "Doria");
+    const auto _real_trace = std::vector<key_type>{"Daniel", "Tomas", "Laura", "Doria"};
+    EXPECT_EQ(_trace, _real_trace);
 
     return 0;
 }
