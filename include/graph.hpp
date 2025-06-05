@@ -846,10 +846,10 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const ->
         set_cost(_ik, _ok, _visitor(*_e)); // for graph
         set_intermediary(_ik, _ok, _ik);
     }
-    auto less_than = [](cost_type _a, cost_type _b, cost_type _c) -> bool { // whether `_a + _b < _c`
-        if (_c > _a) { return _c - _a > _b; }
-        else if (_c > _b) { return _c - _b > _a; }
-        else { return false; }
+    auto greater_than = [](cost_type _s, cost_type _a, cost_type _b) -> bool { // whether `_s > _a + _b`
+        if (_s > _a) { return _s - _a > _b; }
+        if (_s > _b) { return _s - _b > _a; }
+        return false;
     };
     for (const auto& [_k, _kv] : this->_vertices) {
         for (const auto& [_i, _iv] : this->_vertices) {
@@ -860,7 +860,7 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const ->
                 const cost_type _cost_ik = get_cost(_i, _k);
                 const cost_type _cost_kj = get_cost(_k, _j);
                 // if (_cost_ij > _cost_ik + _cost_kj) { // overflow
-                if (less_than(_cost_ik, _cost_kj, _cost_ij)) {
+                if (greater_than(_cost_ij, _cost_ik, _cost_kj)) {
                     // assert(_i != _k && _j != _k);
                     set_cost(_i, _j, _cost_ik + _cost_kj);
                     set_intermediary(_i, _j, _k);
@@ -904,10 +904,10 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) con
         set_cost(_ik, _ok, std::min(get_cost(_ik, _ok), _visitor(*_e))); // for multigraph
         set_intermediary(_ik, _ok, _ik);
     }
-    auto less_than = [](cost_type _a, cost_type _b, cost_type _c) -> bool { // whether `_a + _b < _c`
-        if (_c > _a) { return _c - _a > _b; }
-        else if (_c > _b) { return _c - _b > _a; }
-        else { return false; }
+    auto greater_than = [](cost_type _s, cost_type _a, cost_type _b) -> bool { // whether `_s > _a + _b`
+        if (_s > _a) { return _s - _a > _b; }
+        if (_s > _b) { return _s - _b > _a; }
+        return false;
     };
     for (const auto& [_k, _kv] : this->_vertices) {
         for (const auto& [_i, _iv] : this->_vertices) {
@@ -918,7 +918,7 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) con
                 const cost_type _cost_ik = get_cost(_i, _k);
                 const cost_type _cost_kj = get_cost(_k, _j);
                 // if (_cost_ij > _cost_ik + _cost_kj) { // overflow
-                if (less_than(_cost_ik, _cost_kj, _cost_ij)) {
+                if (greater_than(_cost_ij, _cost_ik, _cost_kj)) {
                     // assert(_i != _k && _j != _k);
                     set_cost(_i, _j, _cost_ik + _cost_kj);
                     set_intermediary(_i, _j, _k);
