@@ -330,13 +330,46 @@ protected:
 public:
     virtual ~graph_base() { clear(); }
 public:
+    /**
+     * @return the number of vertices
+     */
     inline auto order() const -> size_t { return _vertices.size(); }
+    /**
+     * @return the number of edges
+     */
     inline auto size() const -> size_t { return _edges.size(); }
+    /**
+     * @return whether the %graph is empty
+     */
     inline auto empty() const -> bool { return _vertices.empty(); }
+    /**
+     * @param _k the specific key
+     * @return whether there is any element with the specific key
+     */
     inline auto contains(const key_type& _k) const -> bool { return _vertices.contains(_k); }
+    /**
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @return whether there is any edge between the specific keys
+     */
     inline auto adjacent(const key_type& _x, const key_type& _y) const -> bool { return contains(_x) && contains(_y) && get_vertex(_x).contains_to(_y); }
+    /**
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @return the number of edge between the specific keys
+     */
     inline auto count(const key_type& _x, const key_type& _y) const -> size_t { return (contains(_x) && contains(_y)) ? get_vertex(_x).count_to(_y) : 0; }
+    /**
+     * @brief access vertex
+     * @param _k the specific key
+     * @throw std::out_of_range if the specific key not exists
+     */
     inline auto get_vertex(const key_type& _k) -> vertex_type& { return *_vertices.at(_k); }
+    /**
+     * @brief access vertex
+     * @param _k the specific key
+     * @throw std::out_of_range if the specific key not exists
+     */
     inline auto get_vertex(const key_type& _k) const -> const vertex_type& { return *_vertices.at(_k); }
     inline auto begin() { return _vertices.begin(); }
     inline auto end() { return _vertices.end(); }
@@ -350,17 +383,30 @@ public:
     inline auto edge_end() const { return _edges.end(); }
     inline auto edge_cbegin() const { return _edges.cbegin(); }
     inline auto edge_cend() const { return _edges.cend(); }
+    /**
+     * @brief insert vertex with specific key
+     * @param _k the key of the vertex
+     * @param _args the constructor arguments of the vertex
+     */
     template <typename... _Args> auto insert(const key_type& _k, _Args&&... _args) -> void {
         if (contains(_k)) { return; }
         vertex_type* const _v = this->_M_allocate_vertex(std::forward<_Args>(_args)...);
         _vertices[_k] = _v;
     }
+    /**
+     * @brief erase vertex with specific key
+     * @param _k the key of the vertex
+     */
     auto erase(const key_type& _k) -> void {
         if (!contains(_k)) { return; }
         disconnect(_k);
         this->_M_deallocate_vertex(&get_vertex(_k));
         _vertices.erase(_k);
     }
+    /**
+     * @brief disconnect vertex with all vertices
+     * @param _k the key of the vertex
+     */
     auto disconnect(const key_type& _k) -> void {
         if (!contains(_k)) { return; }
         vertex_type& _vertex = get_vertex(_k);
@@ -419,11 +465,40 @@ public:
     auto operator==(const graph&) const -> bool;
     auto operator!=(const graph&) const -> bool;
 public:
-    auto get_edge(const key_type&, const key_type&) -> edge_type*;
-    auto get_edge(const key_type&, const key_type&) const -> const edge_type*;
-    template <typename... _Args> auto connect(const key_type&, const key_type&, _Args&&...) -> void;
-    template <typename... _Args> auto biconnect(const key_type&, const key_type&, _Args&&...) -> void;
-    auto disconnect(const key_type&, const key_type&) -> void;
+    /**
+     * @brief access edge
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @return pointer of the edge (nullptr if the edge not exist)
+     */
+    auto get_edge(const key_type& _x, const key_type& _y) -> edge_type*;
+    /**
+     * @brief access edge
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @return pointer of the edge (nullptr if the edge not exist)
+     */
+    auto get_edge(const key_type& _x, const key_type& _y) const -> const edge_type*;
+    /**
+     * @brief connect the specific vertices
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @param _args the constructor arguments of the edge
+     */
+    template <typename... _Args> auto connect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void;
+    /**
+     * @brief bidirectionally connect the specific vertices 
+     * @param _x the key of one vertex
+     * @param _y the key of the other vertex
+     * @param _args the constructor arguments of the edge
+     */
+    template <typename... _Args> auto biconnect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void;
+    /**
+     * @brief disconnect vertex with all vertices
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     */
+    auto disconnect(const key_type& _x, const key_type& _y) -> void;
 public: // algorithm
     /**
      * @brief dijkstra algorithm
@@ -472,10 +547,39 @@ public:
     auto operator==(const multigraph&) const -> bool;
     auto operator!=(const multigraph&) const -> bool;
 public:
+    /**
+     * @brief access edge
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @return pair of the edge iterator <key_type, edge_type*>
+     */
     auto get_edge(const key_type&, const key_type&) -> std::pair<iterator, iterator>;
+    /**
+     * @brief access edge
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @return pair of the edge iterator <key_type, edge_type*>
+     */
     auto get_edge(const key_type&, const key_type&) const -> std::pair<const_iterator, const_iterator>;
+    /**
+     * @brief connect the specific vertices
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     * @param _args the constructor arguments of the edge
+     */
     template <typename... _Args> auto connect(const key_type&, const key_type&, _Args&&...) -> void;
+    /**
+     * @brief bidirectionally connect the specific vertices 
+     * @param _x the key of one vertex
+     * @param _y the key of the other vertex
+     * @param _args the constructor arguments of the edge
+     */
     template <typename... _Args> auto biconnect(const key_type&, const key_type&, _Args&&...) -> void;
+    /**
+     * @brief disconnect vertex with all vertices
+     * @param _x the key of head vertex
+     * @param _y the key of tail vertex
+     */
     auto disconnect(const key_type&, const key_type&) -> void;
 public: // algorithm
     /**
