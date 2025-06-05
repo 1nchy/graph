@@ -330,8 +330,8 @@ protected:
 public:
     virtual ~graph_base() { clear(); }
 public:
-    inline auto vertices() const -> size_t { return _vertices.size(); }
-    inline auto edges() const -> size_t { return _edges.size(); }
+    inline auto order() const -> size_t { return _vertices.size(); }
+    inline auto size() const -> size_t { return _edges.size(); }
     inline auto empty() const -> bool { return _vertices.empty(); }
     inline auto contains(const key_type& _k) const -> bool { return _vertices.contains(_k); }
     inline auto adjacent(const key_type& _x, const key_type& _y) const -> bool { return contains(_x) && contains(_y) && get_vertex(_x).contains_to(_y); }
@@ -344,6 +344,12 @@ public:
     inline auto end() const { return _vertices.end(); }
     inline auto cbegin() const { return _vertices.cbegin(); }
     inline auto cend() const { return _vertices.cend(); }
+    inline auto edge_begin() { return _edges.begin(); }
+    inline auto edge_end() { return _edges.end(); }
+    inline auto edge_begin() const { return _edges.begin(); }
+    inline auto edge_end() const { return _edges.end(); }
+    inline auto edge_cbegin() const { return _edges.cbegin(); }
+    inline auto edge_cend() const { return _edges.cend(); }
     template <typename... _Args> auto insert(const key_type& _k, _Args&&... _args) -> void {
         if (contains(_k)) { return; }
         vertex_type* const _v = this->_M_allocate_vertex(std::forward<_Args>(_args)...);
@@ -507,7 +513,7 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const graph& _rhs) -> graph& {
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const graph& _rhs) const -> bool {
-    if (this->vertices() != _rhs.vertices() || this->edges() != _rhs.edges()) {
+    if (this->order() != _rhs.order() || this->size() != _rhs.size()) {
         return false;
     }
     std::queue<key_type> _remains;
@@ -630,7 +636,7 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const multigraph& _rhs) -> m
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const multigraph& _rhs) const -> bool {
-    if (this->vertices() != _rhs.vertices() || this->edges() != _rhs.edges()) {
+    if (this->order() != _rhs.order() || this->size() != _rhs.size()) {
         return false;
     }
     std::queue<key_type> _remains;

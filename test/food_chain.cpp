@@ -41,8 +41,8 @@ int main() {
 
     _bio.connect("parasite", "insect", PARASITISM);
 
-    EXPECT_EQ(_bio.vertices(), 8);
-    EXPECT_EQ(_bio.edges(), 11);
+    EXPECT_EQ(_bio.order(), 8);
+    EXPECT_EQ(_bio.size(), 11);
 
     // COMPETITION. if two organisms prey on the same species and there is no relationship between them, they are in a competitive relationship.
     for (auto _i = _bio.begin(); _i != _bio.end(); ++_i) {
@@ -60,8 +60,8 @@ int main() {
             }
         }
     }
-    EXPECT_EQ(_bio.vertices(), 8);
-    EXPECT_EQ(_bio.edges(), 17);
+    EXPECT_EQ(_bio.order(), 8);
+    EXPECT_EQ(_bio.size(), 17);
     EXPECT_EQ(_bio.get_edge("insect", "rabbit")->value(), COMPETITION);
     EXPECT_EQ(_bio.get_edge("eagle", "fox")->value(), COMPETITION);
 
@@ -89,8 +89,8 @@ int main() {
             _victim.insert(_k);
         }
     }
-    EXPECT_EQ(_bio.vertices(), 8);
-    EXPECT_EQ(_bio.edges(), 20);
+    EXPECT_EQ(_bio.order(), 8);
+    EXPECT_EQ(_bio.size(), 20);
     EXPECT_EQ(_bio.get_edge("parasite", "rabbit"), nullptr);
     EXPECT_EQ(_bio.get_edge("parasite", "fox")->value(), PARASITISM);
     EXPECT_EQ(_bio.get_vertex("rabbit").indegree(), 3);
@@ -102,17 +102,17 @@ int main() {
     EXPECT_EQ(_bio, _bio_without_insect);
 
     _bio_without_insect.erase("insect");
-    EXPECT_EQ(_bio_without_insect.vertices(), 7);
-    EXPECT_EQ(_bio_without_insect.edges(), 14);
+    EXPECT_EQ(_bio_without_insect.order(), 7);
+    EXPECT_EQ(_bio_without_insect.size(), 14);
     EXPECT_EQ(_bio_without_insect.get_edge("parasite", "rabbit"), nullptr);
     EXPECT_EQ(_bio_without_insect.get_edge("parasite", "fox")->value(), PARASITISM);
     EXPECT_NQ(_bio, _bio_without_insect);
 
     icy::multigraph<std::string, void, relation_type> _mbio = _bio;
-    EXPECT_EQ(_mbio.vertices(), 8);
-    EXPECT_EQ(_mbio.edges(), 20);
+    EXPECT_EQ(_mbio.order(), 8);
+    EXPECT_EQ(_mbio.size(), 20);
     _mbio.biconnect("lark", "insect", COMPETITION);
-    EXPECT_EQ(_mbio.edges(), 22);
+    EXPECT_EQ(_mbio.size(), 22);
 
     return 0;
 }

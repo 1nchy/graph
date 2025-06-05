@@ -44,8 +44,8 @@ int main() {
     _movie.get_vertex("Laura").set_value(false);
     _movie.connect("Tomas", "Doria", INVESTIGATE);
 
-    EXPECT_EQ(_movie.vertices(), 6);
-    EXPECT_EQ(_movie.edges(), 12);
+    EXPECT_EQ(_movie.order(), 6);
+    EXPECT_EQ(_movie.size(), 12);
 
     _movie.connect("Laura", "Daniel", MURDER);
     _movie.connect("Doria", "Laura", MURDER);
@@ -67,8 +67,8 @@ int main() {
     EXPECT_EQ(_from_doria.at("Tomas")->value(), SON);
     EXPECT_EQ(_from_doria.at("Daniel")->in_key(), "Doria");
     EXPECT_EQ(_from_doria.at("Daniel")->value(), MURDER);
-    EXPECT_EQ(_movie.vertices(), 6);
-    EXPECT_EQ(_movie.edges(), 13);
+    EXPECT_EQ(_movie.order(), 6);
+    EXPECT_EQ(_movie.size(), 13);
 
     auto _movie_alive = _movie;
     EXPECT_EQ(_movie, _movie_alive);
@@ -78,12 +78,12 @@ int main() {
         return 1u;
     });
     EXPECT_FALSE(_from_tomas.contains("Doria"));
-    EXPECT_EQ(_movie_alive.vertices(), 5);
-    EXPECT_EQ(_movie_alive.edges(), 9);
+    EXPECT_EQ(_movie_alive.order(), 5);
+    EXPECT_EQ(_movie_alive.size(), 9);
 
     _movie_alive.erase("Daniel");
-    EXPECT_EQ(_movie_alive.vertices(), 4);
-    EXPECT_EQ(_movie_alive.edges(), 4);
+    EXPECT_EQ(_movie_alive.order(), 4);
+    EXPECT_EQ(_movie_alive.size(), 4);
 
     EXPECT_NQ(_movie, _movie_alive);
 
