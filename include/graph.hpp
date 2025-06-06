@@ -838,19 +838,16 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
     if (!this->contains(_k)) { return {}; }
-    std::unordered_set<key_type> _u; // _s({_k});
-    for (const auto& [_k, _v] : this->_vertices) {
-        _u.insert(_k);
-    }
-    _u.erase(_k);
-    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`, always greater ordered
-    _costs.reserve(_u.size());
-    for (const auto& _k : _u) {
-        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _k);
+    // _s = {_k}, _u = all - {_k}
+    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`
+    _costs.reserve(this->order() - 1);
+    for (const auto& [_key, _vertex] : this->_vertices) {
+        if (_k == _key) { continue; }
+        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _key);
     }
     std::unordered_map<key_type, const edge_type*> _predecessor;
     const vertex_type* _vertex = &this->get_vertex(_k);
-    while (!_u.empty()) {
+    while (!_costs.empty()) {
         // update `_costs` and `_predecessor`
         for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
             const auto _out = _vertex->edge_to(_i->second);
@@ -862,18 +859,17 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_
                 }
             }
         }
-        std::sort(_costs.begin(), _costs.end(), [](const auto& _x, const auto& _y) {
-            return _x.first > _y.first;
-        });
         // choose lowest one (check max)
-        if (_costs.back().first == std::numeric_limits<cost_type>::max()) {
+        const auto _lowest = std::min_element(_costs.cbegin(), _costs.cend(), [](const auto& _x, const auto& _y) {
+            return _x.first < _y.first;
+        });
+        if (_lowest == _costs.cend() || _lowest->first == std::numeric_limits<cost_type>::max()) {
             break;
         }
-        const key_type& _k = _costs.back().second;
-        // update `_vertex`, erase from `_u` and `_costs`
+        const key_type& _k = _lowest->second;
+        // update `_vertex`, erase from `_costs`
         _vertex = &this->get_vertex(_k);
-        _u.erase(_k);
-        _costs.pop_back();
+        _costs.erase(_lowest);
     }
     return _predecessor;
 }
@@ -883,19 +879,16 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visi
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
     if (!this->contains(_k)) { return {}; }
-    std::unordered_set<key_type> _u; // _s({_k});
-    for (const auto& [_k, _v] : this->_vertices) {
-        _u.insert(_k);
-    }
-    _u.erase(_k);
-    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`, always greater ordered
-    _costs.reserve(_u.size());
-    for (const auto& _k : _u) {
-        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _k);
+    // _s = {_k}, _u = all - {_k}
+    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`
+    _costs.reserve(this->order() - 1);
+    for (const auto& [_key, _vertex] : this->_vertices) {
+        if (_k == _key) { continue; }
+        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _key);
     }
     std::unordered_map<key_type, const edge_type*> _predecessor;
     const vertex_type* _vertex = &this->get_vertex(_k);
-    while (!_u.empty()) {
+    while (!_costs.empty()) {
         // update `_costs` and `_predecessor`
         for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
             const auto _out = _vertex->edge_to(_i->second);
@@ -908,18 +901,17 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visi
                 }
             }
         }
-        std::sort(_costs.begin(), _costs.end(), [](const auto& _x, const auto& _y) {
-            return _x.first > _y.first;
-        });
         // choose lowest one (check max)
-        if (_costs.back().first == std::numeric_limits<cost_type>::max()) {
+        const auto _lowest = std::min_element(_costs.cbegin(), _costs.cend(), [](const auto& _x, const auto& _y) {
+            return _x.first < _y.first;
+        });
+        if (_lowest == _costs.cend() || _lowest->first == std::numeric_limits<cost_type>::max()) {
             break;
         }
-        const key_type& _k = _costs.back().second;
-        // update `_vertex`, erase from `_u` and `_costs`
+        const key_type& _k = _lowest->second;
+        // update `_vertex`, erase from `_costs`
         _vertex = &this->get_vertex(_k);
-        _u.erase(_k);
-        _costs.pop_back();
+        _costs.erase(_lowest);
     }
     return _predecessor;
 }

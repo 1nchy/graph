@@ -63,6 +63,8 @@ int main() {
         return 1u;
     });
     // "Doria" -> "Daniel" -> "Tomas"
+    EXPECT_TRUE(_from_doria.contains("Tomas"));
+    EXPECT_TRUE(_from_doria.contains("Daniel"));
     EXPECT_EQ(_from_doria.at("Tomas")->in_key(), "Daniel");
     EXPECT_EQ(_from_doria.at("Tomas")->value(), SON);
     EXPECT_EQ(_from_doria.at("Daniel")->in_key(), "Doria");
