@@ -16,6 +16,7 @@ int main() {
     icy::graph<std::string, void, relation_type> _bio; // biosphere
     using vertex_type = typename decltype(_bio)::vertex_type;
     using edge_type = typename decltype(_bio)::edge_type;
+    using key_type = typename decltype(_bio)::key_type;
 
     _bio.insert("grass");
     _bio.insert("wheat");
@@ -47,7 +48,7 @@ int main() {
     // COMPETITION. if two organisms prey on the same species and there is no relationship between them, they are in a competitive relationship.
     for (auto _i = _bio.begin(); _i != _bio.end(); ++_i) {
         vertex_type& _v = *_i->second;
-        std::unordered_set<std::string> _s;
+        std::unordered_set<key_type> _s;
         const auto _out = _v.out();
         for (auto _j = _out.first; _j != _out.second; ++_j) {
             if (_j->second->value() == PREDATION) {
@@ -67,8 +68,8 @@ int main() {
 
     // PARASITISM parasites are transmitted along the predator food chain
     vertex_type& _v = _bio.get_vertex("parasite");
-    std::queue<std::string> _q;
-    std::unordered_set<std::string> _victim;
+    std::queue<key_type> _q;
+    std::unordered_set<key_type> _victim;
     const auto _out = _v.out();
     for (auto _i = _out.first; _i != _out.second; ++_i) {
         if (_i->second->value() == PARASITISM) {
@@ -76,7 +77,7 @@ int main() {
         }
     }
     while (!_q.empty()) {
-        const std::string& _k = _q.front(); _q.pop();
+        const key_type& _k = _q.front(); _q.pop();
         vertex_type& _v = _bio.get_vertex(_k);
         const auto _out = _v.out();
         for (auto _i = _out.first; _i != _out.second; ++_i) {
@@ -107,6 +108,32 @@ int main() {
     EXPECT_EQ(_bio_without_insect.get_edge("parasite", "rabbit"), nullptr);
     EXPECT_EQ(_bio_without_insect.get_edge("parasite", "fox")->value(), PARASITISM);
     EXPECT_NQ(_bio, _bio_without_insect);
+
+    const auto _floyd = _bio.floyd<unsigned>([](const edge_type& _e) -> unsigned {
+        switch (_e.value()) { // wasted energy
+            case PREDATION: return 1;
+            case PARASITISM: return 2;
+            default: return 100;
+        }
+    });
+    std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
+    [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
+        assert(_floyd.contains(_i) && _floyd.contains(_j));
+        if (!_floyd.adjacent(_i, _j)) { return {}; }
+        if (_i == _j) { return {_i}; }
+        const key_type& _k = _floyd.get_edge(_i, _j)->value();
+        assert(_k != _j);
+        if (_i == _k) { return {_i, _j}; }
+        auto _front = get_trace(_i, _k);
+        auto _back = get_trace(_k, _j);
+        assert(!_front.empty() && !_back.empty());
+        assert(_front.back() == _back.front());
+        _front.insert(_front.end(), _back.begin() + 1, _back.end());
+        return _front;
+    };
+    const auto _trace_insect_fox = get_trace("insect", "fox");
+    const auto _real_trace_insect_fox = std::vector<key_type>{"insect", "lark", "fox"};
+    EXPECT_EQ(_trace_insect_fox, _real_trace_insect_fox);
 
     icy::multigraph<std::string, void, relation_type> _mbio = _bio;
     EXPECT_EQ(_mbio.order(), 8);

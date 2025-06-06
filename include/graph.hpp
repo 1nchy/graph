@@ -313,7 +313,9 @@ edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y,
 base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
 
 
-namespace {
+template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
+template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
+
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct graph_base;
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 struct graph_base : public alloc<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc> {
@@ -426,19 +428,44 @@ public:
         // update vertex
         _vertex.clear();
     }
+    auto disconnect(const key_type& _x, const key_type& _y) -> void {
+        if (!contains(_x) || !contains(_y)) { return; }
+        this->for_each(_x, _y, [this](edge_type& _e) {
+            this->_edges.erase(std::addressof(_e));
+            this->_M_deallocate_edge(std::addressof(_e));
+        });
+        this->get_vertex(_x).erase_to(_y);
+        this->get_vertex(_y).erase_from(_x);
+    }
     auto clear() -> void {
         for (auto [_k, _v] : _vertices) { this->_M_deallocate_vertex(_v); }
         for (auto _e : _edges) { this->_M_deallocate_edge(_e); }
         _vertices.clear(); _edges.clear();
     }
+public: // algorithm
+    /**
+     * @brief dijkstra algorithm
+     * @param _k start vertex key
+     * @param _visitor edge visitor, _R(*)(const edge_type&)
+     * @return predecessor edge for each vertex (exclude unreachable vertices)
+     * @note can't handle negative weight edge
+     */
+    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
+    /**
+     * @brief floyd algorithm
+     * @param _visitor edge visitor, _R(*)(const edge_type&)
+     * @return intermediate vertex between any two vertices
+     * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
+     * @note can't handle negative weight loop
+     */
+    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type>;
+protected:
+    virtual auto for_each(const key_type& _x, const key_type& _y, std::function<void(edge_type&)>&& _editor) -> void = 0;
+    virtual auto for_each(const key_type& _x, const key_type& _y, std::function<void(const edge_type&)>&& _visitor) const -> void = 0;
 protected:
     std::unordered_map<key_type, vertex_type*, _Hash> _vertices;
     std::unordered_set<edge_type*> _edges;
 };
-}
-
-template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
-template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
 
 /**
  * @brief simple directed graph
@@ -493,31 +520,10 @@ public:
      * @param _args the constructor arguments of the edge
      */
     template <typename... _Args> auto biconnect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void;
-    /**
-     * @brief disconnect vertex with all vertices
-     * @param _x the key of head vertex
-     * @param _y the key of tail vertex
-     */
-    auto disconnect(const key_type& _x, const key_type& _y) -> void;
-public: // algorithm
-    /**
-     * @brief dijkstra algorithm
-     * @param _k start vertex key
-     * @param _visitor edge visitor, _R(*)(const edge_type&)
-     * @return predecessor edge for each vertex (exclude unreachable vertices)
-     * @note can't handle negative weight edge
-     */
-    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
-    /**
-     * @brief floyd algorithm
-     * @param _visitor edge visitor, _R(*)(const edge_type&)
-     * @return intermediate vertex between any two vertices
-     * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
-     * @note can't handle negative weight loop
-     */
-    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type>;
 private:
     auto _M_assign(const graph&) -> void;
+    auto for_each(const key_type& _x, const key_type& _y, std::function<void(edge_type&)>&& _editor) -> void override;
+    auto for_each(const key_type& _x, const key_type& _y, std::function<void(const edge_type&)>&& _visitor) const -> void override;
 };
 /**
  * @brief multi directed graph
@@ -575,31 +581,10 @@ public:
      * @param _args the constructor arguments of the edge
      */
     template <typename... _Args> auto biconnect(const key_type&, const key_type&, _Args&&...) -> void;
-    /**
-     * @brief disconnect vertex with all vertices
-     * @param _x the key of head vertex
-     * @param _y the key of tail vertex
-     */
-    auto disconnect(const key_type&, const key_type&) -> void;
-public: // algorithm
-    /**
-     * @brief dijkstra algorithm
-     * @param _k start vertex key
-     * @param _visitor edge visitor, _R(*)(const edge_type&)
-     * @return predecessor edge for each vertex (exclude unreachable vertices)
-     * @note can't handle negative weight edge
-     */
-    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
-    /**
-     * @brief floyd algorithm
-     * @param _visitor edge visitor, _R(*)(const edge_type&)
-     * @return intermediate vertex between any two vertices
-     * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
-     * @note can't handle negative weight loop
-     */
-    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type>;
 private:
     auto _M_assign(const multigraph&) -> void;
+    auto for_each(const key_type& _x, const key_type& _y, std::function<void(edge_type&)>&& _editor) -> void override;
+    auto for_each(const key_type& _x, const key_type& _y, std::function<void(const edge_type&)>&& _visitor) const -> void override;
 };
 
 
@@ -672,19 +657,6 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, const key_typ
     this->connect(_y, _x, std::forward<_Args>(_args)...);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::disconnect(const key_type& _x, const key_type& _y) -> void {
-    if (!this->contains(_x) || !this->contains(_y)) { return; }
-    // erase edges
-    auto _edge = this->get_edge(_x, _y);
-    if (_edge != nullptr) {
-        this->_edges.erase(_edge);
-        this->_M_deallocate_edge(_edge);
-    }
-    // update vertex
-    this->get_vertex(_x).erase_to(_y);
-    this->get_vertex(_y).erase_from(_x);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const graph& _rhs) -> void {
     assert(this->empty());
     std::queue<key_type> _remains;
@@ -703,6 +675,22 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const graph& _rhs) -> void {
             }
             this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
         }
+    }
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::for_each(const key_type& _x, const key_type& _y, std::function<void(edge_type&)>&& _editor) -> void {
+    if (!this->contains(_x) || !this->contains(_y)) { return; }
+    auto _edge = this->get_edge(_x, _y);
+    if (_edge != nullptr) {
+        _editor(*_edge);
+    }
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::for_each(const key_type& _x, const key_type& _y, std::function<void(const edge_type&)>&& _visitor) const -> void {
+    if (!this->contains(_x) || !this->contains(_y)) { return; }
+    auto _edge = this->get_edge(_x, _y);
+    if (_edge != nullptr) {
+        _visitor(*_edge);
     }
 }
 
@@ -797,19 +785,6 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, const ke
     this->connect(_y, _x, std::forward<_Args>(_args)...);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::disconnect(const key_type& _x, const key_type& _y) -> void {
-    if (!this->contains(_x) || !this->contains(_y)) { return; }
-    // erase edges
-    const auto _range = this->get_edge(_x, _y);
-    for (auto _i = _range.first; _i != _range.second; ++_i) {
-        this->_edges.erase(_i->second);
-        this->_M_deallocate_edge(_i->second);
-    }
-    // update vertex
-    this->get_vertex(_x).erase_to(_y);
-    this->get_vertex(_y).erase_from(_x);
-}
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const multigraph& _rhs) -> void {
     assert(this->empty());
     std::queue<key_type> _remains;
@@ -830,11 +805,27 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const multigraph& _rhs) -> v
         }
     }
 }
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::for_each(const key_type& _x, const key_type& _y, std::function<void(edge_type&)>&& _editor) -> void {
+    if (!this->contains(_x) || !this->contains(_y)) { return; }
+    const auto _range = this->get_edge(_x, _y);
+    for (auto _e = _range.first; _e != _range.second; ++_e) {
+        _editor(*_e->second);
+    }
+}
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::for_each(const key_type& _x, const key_type& _y, std::function<void(const edge_type&)>&& _visitor) const -> void {
+    if (!this->contains(_x) || !this->contains(_y)) { return; }
+    const auto _range = this->get_edge(_x, _y);
+    for (auto _e = _range.first; _e != _range.second; ++_e) {
+        _visitor(*_e->second);
+    }
+}
 
 
 /// algorithm implement
-template <typename _Vk,typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*> {
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*> {
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
     if (!this->contains(_k)) { return {}; }
@@ -847,17 +838,17 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_
     }
     std::unordered_map<key_type, const edge_type*> _predecessor;
     const vertex_type* _vertex = &this->get_vertex(_k);
+    key_type _key = _k;
     while (!_costs.empty()) {
         // update `_costs` and `_predecessor`
         for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
-            const auto _out = _vertex->edge_to(_i->second);
-            if (_out != nullptr) {
-                const cost_type _cost = _visitor(*_out);
+            this->for_each(_key, _i->second, [_i, &_visitor, &_predecessor](const edge_type& _e) {
+                const cost_type _cost = _visitor(_e);
                 if (_i->first > _cost) {
                     _i->first = _cost;
-                    _predecessor[_i->second] = *_out;
+                    _predecessor[_i->second] = std::addressof(_e);
                 }
-            }
+            });
         }
         // choose lowest one (check max)
         const auto _lowest = std::min_element(_costs.cbegin(), _costs.cend(), [](const auto& _x, const auto& _y) {
@@ -866,64 +857,21 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_
         if (_lowest == _costs.cend() || _lowest->first == std::numeric_limits<cost_type>::max()) {
             break;
         }
-        const key_type& _k = _lowest->second;
-        // update `_vertex`, erase from `_costs`
-        _vertex = &this->get_vertex(_k);
+        // update `_key`, erase from `_costs`
+        _key = _lowest->second;
         _costs.erase(_lowest);
     }
     return _predecessor;
 }
-/// algorithm implement
-template <typename _Vk,typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*> {
-    using cost_type = _R;
-    static_assert(std::is_arithmetic<cost_type>::value);
-    if (!this->contains(_k)) { return {}; }
-    // _s = {_k}, _u = all - {_k}
-    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`
-    _costs.reserve(this->order() - 1);
-    for (const auto& [_key, _vertex] : this->_vertices) {
-        if (_k == _key) { continue; }
-        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _key);
-    }
-    std::unordered_map<key_type, const edge_type*> _predecessor;
-    const vertex_type* _vertex = &this->get_vertex(_k);
-    while (!_costs.empty()) {
-        // update `_costs` and `_predecessor`
-        for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
-            const auto _out = _vertex->edge_to(_i->second);
-            // update cost from `_vertex` to `_i->second`
-            for (auto _j = _out.first; _j != _out.second; ++_j) {
-                const cost_type _cost = _visitor(*_j->second);
-                if (_i->first > _cost) {
-                    _i->first = _cost;
-                    _predecessor[_i->second] = _j->second;
-                }
-            }
-        }
-        // choose lowest one (check max)
-        const auto _lowest = std::min_element(_costs.cbegin(), _costs.cend(), [](const auto& _x, const auto& _y) {
-            return _x.first < _y.first;
-        });
-        if (_lowest == _costs.cend() || _lowest->first == std::numeric_limits<cost_type>::max()) {
-            break;
-        }
-        const key_type& _k = _lowest->second;
-        // update `_vertex`, erase from `_costs`
-        _vertex = &this->get_vertex(_k);
-        _costs.erase(_lowest);
-    }
-    return _predecessor;
-}
-template <typename _Vk,typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type> {
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type> {
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
     graph<key_type, void, key_type> _intermediary;
     graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : this->_vertices) {
         _intermediary.insert(_k);
-        _costs.insert(_k, 0);
+        _costs.insert(_k);
     }
     auto get_cost = [&_costs, this](const key_type& _i, const key_type& _j) -> cost_type {
         assert(this->contains(_i) && this->contains(_j));
@@ -945,65 +893,7 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const ->
     for (const edge_type* _e : this->_edges) {
         const key_type& _ik = _e->in_key();
         const key_type& _ok = _e->out_key();
-        set_cost(_ik, _ok, _visitor(*_e)); // for graph
-        set_intermediary(_ik, _ok, _ik);
-    }
-    auto greater_than = [](cost_type _s, cost_type _a, cost_type _b) -> bool { // whether `_s > _a + _b`
-        if (_s > _a) { return _s - _a > _b; }
-        if (_s > _b) { return _s - _b > _a; }
-        return false;
-    };
-    for (const auto& [_k, _kv] : this->_vertices) {
-        for (const auto& [_i, _iv] : this->_vertices) {
-            if (_i == _k) { continue; }
-            for (const auto& [_j, _jv] : this->_vertices) {
-                if (_i == _j || _j == _k) continue;
-                const cost_type _cost_ij = get_cost(_i, _j);
-                const cost_type _cost_ik = get_cost(_i, _k);
-                const cost_type _cost_kj = get_cost(_k, _j);
-                // if (_cost_ij > _cost_ik + _cost_kj) { // overflow
-                if (greater_than(_cost_ij, _cost_ik, _cost_kj)) {
-                    // assert(_i != _k && _j != _k);
-                    set_cost(_i, _j, _cost_ik + _cost_kj);
-                    set_intermediary(_i, _j, _k);
-                }
-            }
-        }
-    }
-    return _intermediary;
-}
-template <typename _Vk,typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type> {
-    using cost_type = _R;
-    static_assert(std::is_arithmetic<cost_type>::value);
-    graph<key_type, void, key_type> _intermediary;
-    graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
-    for (const auto& [_k, _v] : this->_vertices) {
-        _intermediary.insert(_k);
-        _costs.insert(_k);
-    }
-    auto get_cost = [&_costs, this](const key_type& _i, const key_type& _j) -> cost_type {
-        assert(this->contains(_i) && this->contains(_j));
-        if (_i == _j) { return 0; }
-        else if (!_costs.adjacent(_i, _j)) { return std::numeric_limits<cost_type>::max(); }
-        else { return _costs.get_edge(_i, _j)->value(); }
-    };
-    auto set_cost = [&_costs, this](const key_type& _i, const key_type& _j, cost_type _c) -> void {
-        assert(this->contains(_i) && this->contains(_j));
-        if (_i == _j) { return; }
-        if (!_costs.adjacent(_i, _j)) { _costs.connect(_i, _j, _c); }
-        else { _costs.get_edge(_i, _j)->set_value(_c); }
-    };
-    auto set_intermediary = [&_intermediary, this](const key_type& _i, const key_type& _j, const key_type& _k) -> void {
-        assert(this->contains(_i) && this->contains(_j) && _i != _j);
-        if (!_intermediary.adjacent(_i, _j)) { _intermediary.connect(_i, _j, _k); }
-        else { _intermediary.get_edge(_i, _j)->set_value(_k); }
-    };
-    for (const edge_type* _e : this->_edges) {
-        const key_type& _ik = _e->in_key();
-        const key_type& _ok = _e->out_key();
-        if (_ik == _ok) { continue; }
-        set_cost(_ik, _ok, std::min(get_cost(_ik, _ok), _visitor(*_e))); // for multigraph
+        set_cost(_ik, _ok, std::min(get_cost(_ik, _ok), _visitor(*_e))); //for graph and multigraph
         set_intermediary(_ik, _ok, _ik);
     }
     auto greater_than = [](cost_type _s, cost_type _a, cost_type _b) -> bool { // whether `_s > _a + _b`
