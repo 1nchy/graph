@@ -1,4 +1,4 @@
-#include "main.hpp"
+#include "test.hpp"
 
 #include "graph.hpp"
 
@@ -18,7 +18,7 @@ enum relation_type : unsigned {
     INVESTIGATE = 0x1 << 8,
 };
 
-int main() {
+ICY_CASE("invisible_guest") {
     // vertex<name, alive>
     icy::multigraph<std::string, bool, relation_type> _movie;
     using vertex_type = typename decltype(_movie)::vertex_type;
@@ -51,65 +51,68 @@ int main() {
     _movie.connect("Doria", "Laura", MURDER);
     _movie.disconnect("Laura", "Daniel");
     _movie.connect("Doria", "Daniel", MURDER);
-    auto _range = _movie.get_edge("Doria", "Laura");
-    unsigned _relationship = NONE;
-    for (auto _i = _range.first; _i != _range.second; ++_i) {
-        _relationship = _relationship | _i->second->value();
+
+    ICY_SUBCASE("relation") {
+        auto _range = _movie.get_edge("Doria", "Laura");
+        unsigned _relationship = NONE;
+        for (auto _i = _range.first; _i != _range.second; ++_i) {
+            _relationship = _relationship | _i->second->value();
+        }
+        EXPECT_EQ(_relationship, LOVER | MURDER);
     }
-    EXPECT_EQ(_relationship, LOVER | MURDER);
 
     _movie.disconnect("Tomas", "Doria");
-    const auto _from_doria = _movie.dijkstra<unsigned>("Doria", [](const edge_type&) -> unsigned {
-        return 1u;
-    });
-    // "Doria" -> "Daniel" -> "Tomas"
-    EXPECT_TRUE(_from_doria.contains("Tomas"));
-    EXPECT_TRUE(_from_doria.contains("Daniel"));
-    EXPECT_EQ(_from_doria.at("Tomas")->in_key(), "Daniel");
-    EXPECT_EQ(_from_doria.at("Tomas")->value(), SON);
-    EXPECT_EQ(_from_doria.at("Daniel")->in_key(), "Doria");
-    EXPECT_EQ(_from_doria.at("Daniel")->value(), MURDER);
     EXPECT_EQ(_movie.order(), 6);
     EXPECT_EQ(_movie.size(), 13);
 
-    auto _movie_alive = _movie;
-    EXPECT_EQ(_movie, _movie_alive);
+    ICY_SUBCASE("floyd") {
+        const auto _floyd = _movie.floyd<unsigned>([](const edge_type&) -> unsigned {
+            return 1u;
+        });
+        std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
+        [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
+            assert(_floyd.contains(_i) && _floyd.contains(_j));
+            if (!_floyd.adjacent(_i, _j)) { return {}; }
+            if (_i == _j) { return {_i}; }
+            const key_type& _k = _floyd.get_edge(_i, _j)->value().second;
+            assert(_k != _j);
+            if (_i == _k) { return {_i, _j}; }
+            auto _front = get_trace(_i, _k);
+            auto _back = get_trace(_k, _j);
+            assert(!_front.empty() && !_back.empty());
+            assert(_front.back() == _back.front());
+            _front.insert(_front.end(), _back.begin() + 1, _back.end());
+            return _front;
+        };
+        const auto _trace = get_trace("Daniel", "Doria");
+        const std::vector<key_type> _expected_trace = {"Daniel", "Tomas", "Laura", "Doria"};
+        EXPECT_EQ(_trace, _expected_trace);
+    }
+    ICY_SUBCASE("bfs") {
+        std::vector<bool> _alive;
+        _alive.reserve(_movie.order());
+        _movie.bfs("Laura", [&_alive](const vertex_type& _v) {
+            _alive.push_back(_v.value());
+        });
+        EXPECT_EQ(_alive.size(), 6);
+        EXPECT_EQ(std::count(_alive.cbegin(), _alive.cend(), false), 2);
+    }
+    ICY_SUBCASE("operator=") {
+        auto _movie_alive = _movie;
+        EXPECT_EQ(_movie, _movie_alive);
 
-    _movie_alive.erase("Laura");
-    const auto _from_tomas = _movie_alive.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
-        return 1u;
-    });
-    EXPECT_FALSE(_from_tomas.contains("Doria"));
-    EXPECT_EQ(_movie_alive.order(), 5);
-    EXPECT_EQ(_movie_alive.size(), 9);
+        _movie_alive.erase("Laura");
+        const auto _from_tomas = _movie_alive.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
+            return 1u;
+        });
+        EXPECT_FALSE(_from_tomas.contains("Doria"));
+        EXPECT_EQ(_movie_alive.order(), 5);
+        EXPECT_EQ(_movie_alive.size(), 9);
 
-    _movie_alive.erase("Daniel");
-    EXPECT_EQ(_movie_alive.order(), 4);
-    EXPECT_EQ(_movie_alive.size(), 4);
+        _movie_alive.erase("Daniel");
+        EXPECT_EQ(_movie_alive.order(), 4);
+        EXPECT_EQ(_movie_alive.size(), 4);
 
-    EXPECT_NQ(_movie, _movie_alive);
-
-    const auto _floyd = _movie.floyd<unsigned>([](const edge_type&) -> unsigned {
-        return 1u;
-    });
-    std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
-    [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
-        assert(_floyd.contains(_i) && _floyd.contains(_j));
-        if (!_floyd.adjacent(_i, _j)) { return {}; }
-        if (_i == _j) { return {_i}; }
-        const key_type& _k = _floyd.get_edge(_i, _j)->value();
-        assert(_k != _j);
-        if (_i == _k) { return {_i, _j}; }
-        auto _front = get_trace(_i, _k);
-        auto _back = get_trace(_k, _j);
-        assert(!_front.empty() && !_back.empty());
-        assert(_front.back() == _back.front());
-        _front.insert(_front.end(), _back.begin() + 1, _back.end());
-        return _front;
-    };
-    const auto _trace = get_trace("Daniel", "Doria");
-    const auto _real_trace = std::vector<key_type>{"Daniel", "Tomas", "Laura", "Doria"};
-    EXPECT_EQ(_trace, _real_trace);
-
-    return 0;
+        EXPECT_NE(_movie, _movie_alive);
+    }
 }

@@ -1,4 +1,4 @@
-#include "main.hpp"
+#include "test.hpp"
 
 #include "graph.hpp"
 
@@ -12,7 +12,7 @@ enum relation_type {
     COMPETITION, // 竞争
 };
 
-int main() {
+ICY_CASE("food chain") {
     icy::graph<std::string, void, relation_type> _bio; // biosphere
     using vertex_type = typename decltype(_bio)::vertex_type;
     using edge_type = typename decltype(_bio)::edge_type;
@@ -99,47 +99,49 @@ int main() {
     EXPECT_EQ(_bio.get_vertex("lark").indegree(), 5);
     EXPECT_EQ(_bio.get_vertex("lark").outdegree(), 3);
 
-    auto _bio_without_insect = _bio;
-    EXPECT_EQ(_bio, _bio_without_insect);
+    ICY_SUBCASE("without insect") {
+        auto _bio_without_insect = _bio;
+        EXPECT_EQ(_bio, _bio_without_insect);
 
-    _bio_without_insect.erase("insect");
-    EXPECT_EQ(_bio_without_insect.order(), 7);
-    EXPECT_EQ(_bio_without_insect.size(), 14);
-    EXPECT_EQ(_bio_without_insect.get_edge("parasite", "rabbit"), nullptr);
-    EXPECT_EQ(_bio_without_insect.get_edge("parasite", "fox")->value(), PARASITISM);
-    EXPECT_NQ(_bio, _bio_without_insect);
-
-    const auto _floyd = _bio.floyd<unsigned>([](const edge_type& _e) -> unsigned {
-        switch (_e.value()) { // wasted energy
-            case PREDATION: return 1;
-            case PARASITISM: return 2;
-            default: return 100;
-        }
-    });
-    std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
-    [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
-        assert(_floyd.contains(_i) && _floyd.contains(_j));
-        if (!_floyd.adjacent(_i, _j)) { return {}; }
-        if (_i == _j) { return {_i}; }
-        const key_type& _k = _floyd.get_edge(_i, _j)->value();
-        assert(_k != _j);
-        if (_i == _k) { return {_i, _j}; }
-        auto _front = get_trace(_i, _k);
-        auto _back = get_trace(_k, _j);
-        assert(!_front.empty() && !_back.empty());
-        assert(_front.back() == _back.front());
-        _front.insert(_front.end(), _back.begin() + 1, _back.end());
-        return _front;
-    };
-    const auto _trace_insect_fox = get_trace("insect", "fox");
-    const auto _real_trace_insect_fox = std::vector<key_type>{"insect", "lark", "fox"};
-    EXPECT_EQ(_trace_insect_fox, _real_trace_insect_fox);
-
-    icy::multigraph<std::string, void, relation_type> _mbio = _bio;
-    EXPECT_EQ(_mbio.order(), 8);
-    EXPECT_EQ(_mbio.size(), 20);
-    _mbio.biconnect("lark", "insect", COMPETITION);
-    EXPECT_EQ(_mbio.size(), 22);
-
-    return 0;
+        _bio_without_insect.erase("insect");
+        EXPECT_EQ(_bio_without_insect.order(), 7);
+        EXPECT_EQ(_bio_without_insect.size(), 14);
+        EXPECT_EQ(_bio_without_insect.get_edge("parasite", "rabbit"), nullptr);
+        EXPECT_EQ(_bio_without_insect.get_edge("parasite", "fox")->value(), PARASITISM);
+        EXPECT_NE(_bio, _bio_without_insect);
+    }
+    ICY_SUBCASE("floyd") {
+        const auto _floyd = _bio.floyd<unsigned>([](const edge_type& _e) -> unsigned {
+            switch (_e.value()) { // wasted energy
+                case PREDATION: return 1;
+                case PARASITISM: return 2;
+                default: return 100;
+            }
+        });
+        std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
+        [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
+            assert(_floyd.contains(_i) && _floyd.contains(_j));
+            if (!_floyd.adjacent(_i, _j)) { return {}; }
+            if (_i == _j) { return {_i}; }
+            const key_type& _k = _floyd.get_edge(_i, _j)->value().second;
+            assert(_k != _j);
+            if (_i == _k) { return {_i, _j}; }
+            auto _front = get_trace(_i, _k);
+            auto _back = get_trace(_k, _j);
+            assert(!_front.empty() && !_back.empty());
+            assert(_front.back() == _back.front());
+            _front.insert(_front.end(), _back.begin() + 1, _back.end());
+            return _front;
+        };
+        const auto _trace_insect_fox = get_trace("insect", "fox");
+        const auto _real_trace_insect_fox = std::vector<key_type>{"insect", "lark", "fox"};
+        EXPECT_EQ(_trace_insect_fox, _real_trace_insect_fox);
+    }
+    ICY_SUBCASE("operator=") {
+        icy::multigraph<std::string, void, relation_type> _mbio = _bio;
+        EXPECT_EQ(_mbio.order(), 8);
+        EXPECT_EQ(_mbio.size(), 20);
+        _mbio.biconnect("lark", "insect", COMPETITION);
+        EXPECT_EQ(_mbio.size(), 22);
+    }
 }

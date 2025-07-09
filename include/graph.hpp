@@ -451,9 +451,10 @@ public: // algorithm
      * @param _k start vertex key
      * @param _visitor edge visitor, _R(*)(const edge_type&)
      * @return predecessor edge for each vertex (exclude unreachable vertices)
+     * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
      * @note can't handle negative weight edge
      */
-    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*>;
+    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, std::pair<_R, key_type>>;
     /**
      * @brief floyd algorithm
      * @param _visitor edge visitor, _R(*)(const edge_type&)
@@ -461,7 +462,11 @@ public: // algorithm
      * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
      * @note can't handle negative weight loop
      */
-    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type>;
+    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, std::pair<_R, key_type>>;
+    auto bfs(const key_type& _k, vertex_modifier<void>&& _visitor) -> size_t;
+    auto bfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t;
+    auto dfs(const key_type& _k, vertex_modifier<void>&& _visitor) -> size_t;
+    auto dfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t;
 protected:
     virtual auto for_each(const key_type& _x, const key_type& _y, edge_modifier<void>&& _modifier) -> void = 0;
     virtual auto for_each(const key_type& _x, const key_type& _y, edge_visitor<void>&& _visitor) const -> void = 0;
@@ -472,7 +477,7 @@ protected:
 
 /// algorithm implement
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, const edge_type*> {
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> std::unordered_map<key_type, std::pair<_R, key_type>> {
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
     if (!this->contains(_k)) { return {}; }
@@ -483,17 +488,17 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, e
         if (_k == _key) { continue; }
         _costs.emplace_back(std::numeric_limits<cost_type>::max(), _key);
     }
-    std::unordered_map<key_type, const edge_type*> _predecessor;
+    std::unordered_map<key_type, std::pair<_R, key_type>> _predecessor;
     const vertex_type* _vertex = &this->get_vertex(_k);
     key_type _key = _k;
     while (!_costs.empty()) {
         // update `_costs` and `_predecessor`
         for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
-            this->for_each(_key, _i->second, [_i, &_visitor, &_predecessor](const edge_type& _e) {
+            this->for_each(_key, _i->second, [_i, &_key, &_visitor, &_predecessor](const edge_type& _e) {
                 const cost_type _cost = _visitor(_e);
                 if (_i->first > _cost) {
                     _i->first = _cost;
-                    _predecessor[_i->second] = std::addressof(_e);
+                    _predecessor[_i->second] = std::make_pair(_cost, _key);
                 }
             });
         }
@@ -511,37 +516,33 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, e
     return _predecessor;
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, key_type> {
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, std::pair<_R, key_type>> {
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
-    graph<key_type, void, key_type> _intermediary;
+    graph<key_type, void, std::pair<_R, key_type>> _intermediary;
     graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : this->_vertices) {
         _intermediary.insert(_k);
-        _costs.insert(_k);
+        // _costs.insert(_k);
     }
-    auto get_cost = [&_costs, this](const key_type& _i, const key_type& _j) -> cost_type {
+    auto get_cost = [&_intermediary, this](const key_type& _i, const key_type& _j) -> cost_type {
         assert(this->contains(_i) && this->contains(_j));
         if (_i == _j) { return 0; }
-        else if (!_costs.adjacent(_i, _j)) { return std::numeric_limits<cost_type>::max(); }
-        else { return _costs.get_edge(_i, _j)->value(); }
+        else if (!_intermediary.adjacent(_i, _j)) { return std::numeric_limits<cost_type>::max(); }
+        else { return _intermediary.get_edge(_i, _j)->value().first; }
     };
-    auto set_cost = [&_costs, this](const key_type& _i, const key_type& _j, cost_type _c) -> void {
-        assert(this->contains(_i) && this->contains(_j));
-        if (_i == _j) { return ; }
-        if (!_costs.adjacent(_i, _j)) { _costs.connect(_i, _j, _c); }
-        else { _costs.get_edge(_i, _j)->set_value(_c); }
-    };
-    auto set_intermediary = [&_intermediary, this](const key_type& _i, const key_type& _j, const key_type& _k) -> void {
+    auto set_intermediary = [&_intermediary, this](const key_type& _i, const key_type& _j, cost_type _cost, const key_type& _k) -> void {
         assert(this->contains(_i) && this->contains(_j) && _i != _j);
-        if (!_intermediary.adjacent(_i, _j)) { _intermediary.connect(_i, _j, _k); }
-        else { _intermediary.get_edge(_i, _j)->set_value(_k); }
+        if (!_intermediary.adjacent(_i, _j)) { _intermediary.connect(_i, _j, _cost, _k); }
+        else { _intermediary.get_edge(_i, _j)->set_value(std::make_pair(_cost, _k)); }
     };
     for (const edge_type* _e : this->_edges) {
         const key_type& _ik = _e->in_key();
         const key_type& _ok = _e->out_key();
-        set_cost(_ik, _ok, std::min(get_cost(_ik, _ok), _visitor(*_e))); //for graph and multigraph
-        set_intermediary(_ik, _ok, _ik);
+        const cost_type _cost = _visitor(*_e);
+        if (get_cost(_ik, _ok) > _cost) {
+            set_intermediary(_ik, _ok, _cost, _ik); //for graph and multigraph
+        }
     }
     auto greater_than = [](cost_type _s, cost_type _a, cost_type _b) -> bool { // whether `_s > _a + _b`
         if (_s > _a) { return _s - _a > _b; }
@@ -559,13 +560,96 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visi
                 // if (_cost_ij > _cost_ik + _cost_kj) { // overflow
                 if (greater_than(_cost_ij, _cost_ik, _cost_kj)) {
                     // assert(_i != _k && _j != _k);
-                    set_cost(_i, _j, _cost_ik + _cost_kj);
-                    set_intermediary(_i, _j, _k);
+                    set_intermediary(_i, _j, _cost_ik + _cost_kj, _k);
                 }
             }
         }
     }
     return _intermediary;
+}
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _k, vertex_modifier<void>&& _modifier) -> size_t {
+    if (!contains(_k)) { return 0; }
+    std::queue<vertex_type*> _q;
+    std::unordered_set<vertex_type*> _s; // record vertex whether in queue before
+    _q.push(&get_vertex(_k));
+    _s.insert(_q.front());
+    size_t _cnt = 0;
+    while (!_q.empty()) {
+        vertex_type* const _vertex = _q.front(); _q.pop();
+        _modifier(*_vertex); ++_cnt;
+        const auto _outs = _vertex->out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            vertex_type* const _v = &get_vertex(_out->first);
+            if (_s.contains(_v)) { continue; }
+            _q.push(_v);
+            _s.insert(_v);
+        }
+    }
+    return _cnt;
+}
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t {
+    if (!contains(_k)) { return 0; }
+    std::queue<const vertex_type*> _q;
+    std::unordered_set<const vertex_type*> _s; // record vertex whether in queue before
+    _q.push(&get_vertex(_k));
+    _s.insert(_q.front());
+    size_t _cnt = 0;
+    while (!_q.empty()) {
+        const vertex_type* const _vertex = _q.front(); _q.pop();
+        _visitor(*_vertex); ++_cnt;
+        const auto _outs = _vertex->out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            const vertex_type* const _v = &get_vertex(_out->first);
+            if (_s.contains(_v)) { continue; }
+            _q.push(_v);
+            _s.insert(_v);
+        }
+    }
+    return _cnt;
+}
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _k, vertex_modifier<void>&& _modifier) -> size_t {
+    if (!contains(_k)) { return 0; }
+    std::vector<vertex_type*> _vec;
+    std::unordered_set<vertex_type*> _s; // record vertex whether in stack before
+    _vec.push_back(&get_vertex(_k));
+    _s.insert(_vec.back());
+    size_t _cnt = 0;
+    while (!_vec.empty()) {
+        vertex_type* const _vertex = _vec.back(); _vec.pop_back();
+        _modifier(*_vertex); ++_cnt;
+        const auto _outs = _vertex->out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            vertex_type* const _v = &get_vertex(_out->first);
+            if (_s.contains(_v)) { continue; }
+            _vec.push_back(_v);
+            _s.insert(_v);
+        }
+    }
+    return _cnt;
+}
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t {
+    if (!contains(_k)) { return 0; }
+    std::vector<const vertex_type*> _vec;
+    std::unordered_set<const vertex_type*> _s; // record vertex whether in stack before
+    _vec.push_back(&get_vertex(_k));
+    _s.insert(_vec.back());
+    size_t _cnt = 0;
+    while (!_vec.empty()) {
+        const vertex_type* const _vertex = _vec.back(); _vec.pop_back();
+        _modifier(*_vertex); ++_cnt;
+        const auto _outs = _vertex->out();
+        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
+            const vertex_type* const _v = &get_vertex(_out->first);
+            if (_s.contains(_v)) { continue; }
+            _vec.push_back(_v);
+            _s.insert(_v);
+        }
+    }
+    return _cnt;
 }
 }
 

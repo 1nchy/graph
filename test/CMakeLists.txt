@@ -21,3 +21,7 @@ endmacro(icy_add_test)
 
 icy_add_test(invisible_guest)
 icy_add_test(food_chain)
+icy_add_test(dijkstra)
+icy_add_test(floyd)
+icy_add_test(bfs)
+icy_add_test(dfs)
