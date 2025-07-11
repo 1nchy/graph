@@ -14,7 +14,7 @@
 
 namespace icy {
 
-namespace {
+namespace __details__::graph {
 template <typename _Tp> struct storage;
 template <typename _Tp> struct storage {
 public:
@@ -47,8 +47,13 @@ public:
 
 template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> struct edge;
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash> struct vertex;
+namespace __details__::graph {
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct graph_base;
+}
+template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
+template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
 
-namespace {
+namespace __details__::graph {
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct alloc;
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct alloc: public _Alloc {
 public:
@@ -93,9 +98,9 @@ public:
 };
 }
 
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> struct vertex<_Vk, true, _Vv, _Ev, _Hash> : public storage<_Vv> {
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> struct vertex<_Vk, true, _Vv, _Ev, _Hash> : public __details__::graph::storage<_Vv> {
 public:
-    using base = storage<_Vv>;
+    using base = __details__::graph::storage<_Vv>;
     using key_type = _Vk;
     using value_type = typename base::value_type;
     using vertex_type = vertex<_Vk, true, _Vv, _Ev, _Hash>;
@@ -109,7 +114,7 @@ public:
     auto operator=(const vertex_type&) -> vertex_type& = delete;
     auto operator=(vertex_type&&) -> vertex_type& = delete;
     virtual ~vertex() = default;
-    template <typename __Vk, bool _Multi, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph_base;
+    template <typename __Vk, bool _Multi, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct __details__::graph::graph_base;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct multigraph;
 public:
@@ -172,9 +177,9 @@ private:
     std::unordered_multimap<key_type, edge_type*, _Hash> _in;
     std::unordered_multimap<key_type, edge_type*, _Hash> _out;
 };
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> struct vertex<_Vk, false, _Vv, _Ev, _Hash> : public storage<_Vv> {
+template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> struct vertex<_Vk, false, _Vv, _Ev, _Hash> : public __details__::graph::storage<_Vv> {
 public:
-    using base = storage<_Vv>;
+    using base = __details__::graph::storage<_Vv>;
     using key_type = _Vk;
     using value_type = typename base::value_type;
     using vertex_type = vertex<_Vk, false, _Vv, _Ev, _Hash>;
@@ -188,7 +193,7 @@ public:
     auto operator=(const vertex_type&) -> vertex_type& = delete;
     auto operator=(vertex_type&&) -> vertex_type& = delete;
     virtual ~vertex() = default;
-    template <typename __Vk, bool _Multi, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph_base;
+    template <typename __Vk, bool _Multi, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct __details__::graph::graph_base;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct multigraph;
 public:
@@ -251,9 +256,9 @@ private:
     std::unordered_map<key_type, edge_type*, _Hash> _in;
     std::unordered_map<key_type, edge_type*, _Hash> _out;
 };
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> struct edge : public storage<_Ev> {
+template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> struct edge : public __details__::graph::storage<_Ev> {
 public:
-    using base = storage<_Ev>;
+    using base = __details__::graph::storage<_Ev>;
     using value_type = typename base::value_type;
     using vertex_type = vertex<_Vk, _Multi, _Vv, _Ev, _Hash>;
     using edge_type = edge<_Ev, _Vk, _Multi, _Vv, _Hash>;
@@ -313,11 +318,7 @@ edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y,
 base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
 
 
-template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
-template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
-
-namespace {
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct graph_base;
+namespace __details__::graph {
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 struct graph_base : public alloc<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc> {
 public:
@@ -519,8 +520,8 @@ template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash,
 graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> icy::graph<key_type, void, std::pair<_R, key_type>> {
     using cost_type = _R;
     static_assert(std::is_arithmetic<cost_type>::value);
-    graph<key_type, void, std::pair<_R, key_type>> _intermediary;
-    graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
+    icy::graph<key_type, void, std::pair<_R, key_type>> _intermediary;
+    icy::graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : this->_vertices) {
         _intermediary.insert(_k);
         // _costs.insert(_k);
@@ -661,9 +662,9 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _k, vertex
  * @tparam _Ev edge value (`void` by default)
  */
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
-struct graph : public graph_base<_Vk, false, _Vv, _Ev, _Hash, _Alloc> {
+struct graph : public __details__::graph::graph_base<_Vk, false, _Vv, _Ev, _Hash, _Alloc> {
 public:
-    using base = graph_base<_Vk, false, _Vv, _Ev, _Hash, _Alloc>;
+    using base = __details__::graph::graph_base<_Vk, false, _Vv, _Ev, _Hash, _Alloc>;
     using key_type = typename base::key_type;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
@@ -720,9 +721,9 @@ private:
  * @tparam _Ev edge value (`void` by default)
  */
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
-struct multigraph : public graph_base<_Vk, true, _Vv, _Ev, _Hash, _Alloc> {
+struct multigraph : public __details__::graph::graph_base<_Vk, true, _Vv, _Ev, _Hash, _Alloc> {
 public:
-    using base = graph_base<_Vk, true, _Vv, _Ev, _Hash, _Alloc>;
+    using base = __details__::graph::graph_base<_Vk, true, _Vv, _Ev, _Hash, _Alloc>;
     using key_type = typename base::key_type;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;

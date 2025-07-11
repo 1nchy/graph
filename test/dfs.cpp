@@ -59,7 +59,7 @@ ICY_CASE("multigraph") {
     }
     ICY_SUBCASE("to lower case") {
         bool _all_lower_case = true;
-        _g.dfs("F", [&_all_lower_case](const vertex_type& _v) {
+        _g.dfs("I", [&_all_lower_case](const vertex_type& _v) {
             if (isupper(_v.value())) { _all_lower_case = false; }
         });
         EXPECT_FALSE(_all_lower_case);
@@ -69,7 +69,7 @@ ICY_CASE("multigraph") {
                 _v.set_value(tolower(_v.value()));
             }
         });
-        _g.dfs("F", [&_all_lower_case](const vertex_type& _v) {
+        _g.dfs("I", [&_all_lower_case](const vertex_type& _v) {
             if (isupper(_v.value())) { _all_lower_case = false; }
         });
         EXPECT_TRUE(_all_lower_case);

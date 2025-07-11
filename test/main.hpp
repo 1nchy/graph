@@ -5,24 +5,27 @@ using value_type = char;
 using cost_type = unsigned;
 
 #define TYPE(type) type<key_type, value_type, cost_type>
-#define BUILD(type) TYPE(type) ANONYMOUS_GRAPH
 
 // g++ -E test/main.hpp -I include -DMERMAID
 #ifndef MERMAID
 #include "graph.hpp"
 #include <string>
+#define BUILD_BEGIN(type) TYPE(type) ANONYMOUS_GRAPH
+#define BUILD_END return ANONYMOUS_GRAPH
 #define BUILD_VERTEX(x, v) ANONYMOUS_GRAPH.insert(#x, #v[0])
 #define BUILD_EDGE(x, y, e) ANONYMOUS_GRAPH.connect(#x, #y, e)
-#else
+#else // MERMAID
+#define BUILD_BEGIN(type) ~~~mermaid
+#define BUILD_END ~~~
 #define BUILD_VERTEX(x, v) x((#v))
 #define BUILD_EDGE(x, y, e) x--#e-->y
-#endif
+#endif // MERMAID
 
 template <size_t _I> auto graph_instance() -> TYPE(icy::graph);
 template <size_t _I> auto multigraph_instance() -> TYPE(icy::multigraph);
 
 template <> auto graph_instance<0>() -> TYPE(icy::graph) {
-    BUILD(icy::graph);
+    BUILD_BEGIN(icy::graph);
     BUILD_VERTEX(A, a);
     BUILD_VERTEX(B, B);
     BUILD_VERTEX(C, c);
@@ -40,11 +43,49 @@ template <> auto graph_instance<0>() -> TYPE(icy::graph) {
     BUILD_EDGE(D, E, 35);
     BUILD_EDGE(E, D, 30);
     BUILD_EDGE(F, D, 3);
-    return ANONYMOUS_GRAPH;
+    BUILD_END;
+}
+/**
+ * @brief disconnected graph
+ */
+template <> auto graph_instance<1>() -> TYPE(icy::graph) {
+    BUILD_BEGIN(icy::graph);
+    BUILD_VERTEX(A, a);
+    BUILD_VERTEX(B, B);
+    BUILD_VERTEX(C, c);
+    BUILD_VERTEX(D, d);
+    BUILD_VERTEX(E, E);
+    BUILD_VERTEX(F, f);
+    BUILD_VERTEX(G, G);
+    BUILD_VERTEX(H, h);
+    BUILD_VERTEX(I, i);
+    BUILD_VERTEX(J, j);
+    BUILD_VERTEX(K, k);
+    BUILD_VERTEX(L, L);
+    BUILD_VERTEX(M, m);
+    BUILD_EDGE(A, B, 2);
+    BUILD_EDGE(A, C, 2);
+    BUILD_EDGE(A, F, 1);
+    BUILD_EDGE(A, L, 3);
+    BUILD_EDGE(C, A, 1);
+    BUILD_EDGE(B, A, 1);
+    BUILD_EDGE(B, M, 1);
+    BUILD_EDGE(M, L, 1);
+    BUILD_EDGE(J, M, 1);
+    BUILD_EDGE(L, J, 1);
+    BUILD_EDGE(D, E, 2);
+    BUILD_EDGE(E, D, 3);
+    BUILD_EDGE(I, G, 3);
+    BUILD_EDGE(G, I, 2);
+    BUILD_EDGE(G, H, 2);
+    BUILD_EDGE(G, K, 2);
+    BUILD_EDGE(H, K, 2);
+    BUILD_EDGE(H, G, 2);
+    BUILD_END;
 }
 
 template <> auto multigraph_instance<0>() -> TYPE(icy::multigraph) {
-    BUILD(icy::multigraph);
+    BUILD_BEGIN(icy::multigraph);
     BUILD_VERTEX(A, a);
     BUILD_VERTEX(B, B);
     BUILD_VERTEX(C, c);
@@ -64,10 +105,10 @@ template <> auto multigraph_instance<0>() -> TYPE(icy::multigraph) {
     BUILD_EDGE(D, E, 4);
     BUILD_EDGE(E, A, 2);
     BUILD_EDGE(E, C, 3);
-    return ANONYMOUS_GRAPH;
+    BUILD_END;
 }
 template <> auto multigraph_instance<1>() -> TYPE(icy::multigraph) {
-    BUILD(icy::multigraph);
+    BUILD_BEGIN(icy::multigraph);
     BUILD_VERTEX(A, a);
     BUILD_VERTEX(B, B);
     BUILD_VERTEX(C, c);
@@ -76,6 +117,7 @@ template <> auto multigraph_instance<1>() -> TYPE(icy::multigraph) {
     BUILD_VERTEX(F, f);
     BUILD_VERTEX(G, G);
     BUILD_VERTEX(H, h);
+    BUILD_VERTEX(I, i);
     BUILD_EDGE(A, B, 3);
     BUILD_EDGE(B, C, 15);
     BUILD_EDGE(B, E, 12);
@@ -87,13 +129,20 @@ template <> auto multigraph_instance<1>() -> TYPE(icy::multigraph) {
     BUILD_EDGE(E, G, 9);
     BUILD_EDGE(E, G, 14);
     BUILD_EDGE(F, F, 3);
-    BUILD_EDGE(F, G, 8);
     BUILD_EDGE(G, D, 11);
     BUILD_EDGE(G, H, 6);
-    return ANONYMOUS_GRAPH;
+    BUILD_EDGE(I, A, 7);
+    BUILD_EDGE(I, B, 13);
+    BUILD_END;
 }
 
 #undef TYPE
-#undef BUILD
+#undef BUILD_BEGIN
+#undef BUILD_END
 #undef BUILD_VERTEX
 #undef BUILD_EDGE
+
+#ifndef MERMAID
+#include "graph.hpp"
+#include <string>
+#endif // MERMAID
