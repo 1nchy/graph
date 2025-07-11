@@ -667,10 +667,10 @@ public:
     using key_type = typename base::key_type;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
-    template <typename _R> using vertex_visitor = typename base::vertex_visitor<_R>;
-    template <typename _R> using edge_visitor = typename base::edge_visitor<_R>;
-    template <typename _R> using vertex_modifier = typename base::vertex_modifier<_R>;
-    template <typename _R> using edge_modifier = typename base::edge_modifier<_R>;
+    template <typename _R> using vertex_visitor = typename base::template vertex_visitor<_R>;
+    template <typename _R> using edge_visitor = typename base::template edge_visitor<_R>;
+    template <typename _R> using vertex_modifier = typename base::template vertex_modifier<_R>;
+    template <typename _R> using edge_modifier = typename base::template edge_modifier<_R>;
 public:
     graph() = default;
     graph(const graph&);
@@ -726,10 +726,10 @@ public:
     using key_type = typename base::key_type;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
-    template <typename _R> using vertex_visitor = typename base::vertex_visitor<_R>;
-    template <typename _R> using edge_visitor = typename base::edge_visitor<_R>;
-    template <typename _R> using vertex_modifier = typename base::vertex_modifier<_R>;
-    template <typename _R> using edge_modifier = typename base::edge_modifier<_R>;
+    template <typename _R> using vertex_visitor = typename base::template vertex_visitor<_R>;
+    template <typename _R> using edge_visitor = typename base::template edge_visitor<_R>;
+    template <typename _R> using vertex_modifier = typename base::template vertex_modifier<_R>;
+    template <typename _R> using edge_modifier = typename base::template edge_modifier<_R>;
 private:
     using iterator = typename vertex_type::iterator;
     using const_iterator = typename vertex_type::const_iterator;
