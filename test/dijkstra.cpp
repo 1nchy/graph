@@ -19,15 +19,37 @@ ICY_CASE("graph") {
             _from_a.trail("F", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            std::vector<std::string> _expected_trail = {};
+            const std::vector<std::string> _expected_trail = {};
             EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_a.cost("F"), std::numeric_limits<cost_type>::max());
         }
         ICY_SUBCASE("to B") {
             _from_a.trail("B", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            std::vector<std::string> _expected_trail = {"A", "C", "D", "B"};
+            const std::vector<std::string> _expected_trail = {"A", "C", "D", "B"};
             EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_a.cost("B"), 45);
+        }
+        ICY_SUBCASE("to A") {
+            _from_a.trail("A", [&_trail](const std::string& _k) -> void {
+                _trail.push_back(_k);
+            });
+            const std::vector<std::string> _expected_trail = {"A"};
+            EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_a.cost("A"), 0);
+        }
+        ICY_SUBCASE("to Z") {
+            EXPECT_THROW(
+                std::out_of_range,
+                _from_a.trail("Z", [&_trail](const std::string& _k) -> void {
+                    _trail.push_back(_k);
+                })
+            );
+            EXPECT_THROW(
+                std::out_of_range,
+                _from_a.cost("Z")
+            );
         }
     }
     ICY_SUBCASE("from F") {
@@ -39,9 +61,26 @@ ICY_CASE("graph") {
             _from_f.trail("A", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            std::vector<std::string> _expected_trail = {"F", "D", "B", "C", "A"};
+            const std::vector<std::string> _expected_trail = {"F", "D", "B", "C", "A"};
             EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_f.cost("A"), 58);
         }
+        ICY_SUBCASE("to F") {
+            _from_f.trail("F", [&_trail](const std::string& _k) -> void {
+                _trail.push_back(_k);
+            });
+            const std::vector<std::string> _expected_trail = {"F"};
+            EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_f.cost("F"), 0);
+        }
+    }
+    ICY_SUBCASE("from Z") {
+        EXPECT_THROW(
+            std::out_of_range,
+            const auto _from_z = _g.dijkstra<unsigned>("Z", [](const edge_type& _e) -> unsigned {
+                return _e.value();
+            })
+        );
     }
 }
 ICY_CASE("multigraph") {
@@ -57,8 +96,21 @@ ICY_CASE("multigraph") {
             _from_a.trail("H", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            std::vector<std::string> _expected_trail = {"A", "B", "E", "G", "H"};
+            const std::vector<std::string> _expected_trail = {"A", "B", "E", "G", "H"};
             EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_a.cost("H"), 30);
+        }
+        ICY_SUBCASE("to Z") {
+            EXPECT_THROW(
+                std::out_of_range,
+                _from_a.trail("Z", [&_trail](const std::string& _k) -> void {
+                    _trail.push_back(_k);
+                })
+            );
+            EXPECT_THROW(
+                std::out_of_range,
+                _from_a.cost("Z")
+            );
         }
     }
     ICY_SUBCASE("from G") {
@@ -70,8 +122,9 @@ ICY_CASE("multigraph") {
             _from_g.trail("F", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            std::vector<std::string> _expected_trail = {"G", "D", "A", "B", "C", "F"};
+            const std::vector<std::string> _expected_trail = {"G", "D", "A", "B", "C", "F"};
             EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_g.cost("F"), 52);
         }
     }
     ICY_SUBCASE("from H") {
@@ -83,8 +136,17 @@ ICY_CASE("multigraph") {
             _from_h.trail("F", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            std::vector<std::string> _expected_trail = {};
+            const std::vector<std::string> _expected_trail = {};
             EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_h.cost("F"), std::numeric_limits<cost_type>::max());
         }
+    }
+    ICY_SUBCASE("from Z") {
+        EXPECT_THROW(
+            std::out_of_range,
+            const auto _from_z = _g.dijkstra<unsigned>("Z", [](const edge_type& _e) -> unsigned {
+                return _e.value();
+            })
+        );
     }
 }

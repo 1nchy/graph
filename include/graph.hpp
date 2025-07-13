@@ -457,16 +457,16 @@ public: // algorithm
      * @brief dijkstra algorithm
      * @param _k start vertex key
      * @param _visitor edge visitor, _R(*)(const edge_type&)
-     * @return predecessor edge for each vertex (exclude unreachable vertices)
-     * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
+     * @return dijkstra result wrapper
+     * @throw out_of_range if the key not exists
      * @note can't handle negative weight edge
      */
     template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
     /**
      * @brief floyd algorithm
+     * @tparam _R cost type
      * @param _visitor edge visitor, _R(*)(const edge_type&)
-     * @return intermediate vertex between any two vertices
-     * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
+     * @return floyd result wrapper
      * @note can't handle negative weight loop
      */
     template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
@@ -481,7 +481,9 @@ protected:
     std::unordered_map<key_type, vertex_type*, _Hash> _vertices;
     std::unordered_set<edge_type*> _edges;
 };
-
+/**
+ * @brief dijkstra result wrapper
+ */
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra {
 public:
     using base = graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>;
@@ -500,12 +502,33 @@ public:
     auto operator=(dijkstra&&) -> dijkstra& = delete;
     ~dijkstra() = default;
 public:
-    auto trail(const key_type&, trailer&&) const -> void;
+    /**
+     * @brief process each vertex in trail (including begin` and end vertex)
+     * @param _x end vertex key
+     * @param _trailer vertex handler, void(*)(const key_type&)
+     * @throw out_of_range if the key not exists
+     * @note T(n) = O(n)
+     */
+    auto trail(const key_type& _x, trailer&& _trailer) const -> void;
+    /**
+     * @brief cost from `begin` to `end`
+     * @param _x end vertex key
+     * @throw out_of_range if the key not exists
+     * @note T(n) = O(1)
+     */
+    auto cost(const key_type& _x) const -> cost_type;
 private:
     const base& _g;
+    /**
+     * @brief predecessor edge for each vertex (exclude unreachable vertices)
+     * @note edge[i][j] == k -> shortest path from i to j via k, k may be equal to i
+     */
     std::unordered_map<key_type, std::pair<cost_type, key_type>> _predecessor;
     const key_type _k;
 };
+/**
+ * @brief floyd result wrapper
+ */
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd {
 public:
     using base = graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>;
@@ -524,9 +547,30 @@ public:
     auto operator=(floyd&&) -> floyd& = delete;
     ~floyd() = default;
 public:
-    auto trail(const key_type&, const key_type&, trailer&&) const -> void;
+    /**
+     * @brief process each vertex in trail (including begin` and end vertex)
+     * @param _x begin vertex key
+     * @param _y end vertex key
+     * @param _trailer vertex handler, void(*)(const key_type&)
+     * @throw out_of_range if the key not exists
+     * @note T(n) = O(n)
+     */
+    auto trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void;
+    /**
+     * @brief cost from `begin` to `end`
+     * @param _x begin vertex key
+     * @param _y end vertex key
+     * @retval 0 if _x == _y
+     * @throw out_of_range if the key not exists
+     * @note T(n) = O(1)
+     */
+    auto cost(const key_type& _x, const key_type& _y) const -> cost_type;
 private:
     const base& _g;
+    /**
+     * @brief intermediate vertex between any two vertices
+     * @note edge[i][j] == k -> shortest path from i to j via k, k may be equal to i
+     */
     icy::graph<key_type, void, std::pair<cost_type, key_type>> _intermediary;
 };
 
@@ -648,7 +692,9 @@ dijkstra(const base& _g, const key_type& _k, typename base::edge_visitor<cost_ty
                 const cost_type _cost = _visitor(_e);
                 if (_i->first > _cost) {
                     _i->first = _cost;
-                    this->_predecessor[_i->second] = std::make_pair(_cost, _key);
+                    this->_predecessor[_i->second] = std::make_pair(
+                        _cost + (this->_predecessor.contains(_key) ? this->_predecessor.at(_key).first : 0), _key
+                    );
                 }
             });
         }
@@ -666,6 +712,9 @@ dijkstra(const base& _g, const key_type& _k, typename base::edge_visitor<cost_ty
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
 dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, trailer&& _trailer) const -> void {
+    if (!_g.contains(_x)) {
+        throw std::out_of_range("dijkstra::trail(...)");
+    }
     std::function<void(const key_type&)> _M_dijkstra_trail = [&_M_dijkstra_trail, this, _trailer] (const key_type& _x) -> void {
         if (this->_k == _x) {
             _trailer(this->_k);
@@ -676,6 +725,17 @@ dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x,
         _trailer(_x);
     };
     _M_dijkstra_trail(_x);
+}
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
+dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x) const -> cost_type {
+    if (!_g.contains(_x)) {
+        throw std::out_of_range("dijkstra::cost(...)");
+    }
+    if (_k == _x) { return 0; }
+    if (_predecessor.contains(_x)) {
+        return _predecessor.at(_x).first;
+    }
+    return std::numeric_limits<cost_type>::max();
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
 floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
@@ -728,8 +788,11 @@ floyd(const base& _g, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
 floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
+    if (!_g.contains(_x) || !_g.contains(_y)) {
+        throw std::out_of_range("floyd::trail(...)");
+    }
     if (!_intermediary.contains(_x) || !_intermediary.contains(_y)) {
-        return;
+        return; // would not reach
     }
     if (_x == _y) {
         _trailer(_x);
@@ -745,6 +808,17 @@ floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, co
         _M_floyd_trail(_k, _y, std::move(_trailer));
     };
     _M_floyd_trail(_x, _y, std::move(_trailer));
+}
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
+floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x, const key_type& _y) const -> cost_type {
+    if (!_g.contains(_x) || !_g.contains(_y)) {
+        throw std::out_of_range("floyd::cost(...)");
+    }
+    if (_x == _y) { return 0; }
+    if (_intermediary.adjacent(_x, _y)) {
+        return _intermediary.get_edge(_x, _y)->value().first;
+    }
+    return std::numeric_limits<cost_type>::max();
 }
 }
 
