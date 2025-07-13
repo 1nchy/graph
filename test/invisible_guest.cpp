@@ -70,7 +70,7 @@ ICY_CASE("invisible_guest") {
             return 1u;
         });
         std::vector<key_type> _trace;
-        _floyd("Daniel", "Doria", [&_trace](const key_type& _k) -> void {
+        _floyd.trail("Daniel", "Doria", [&_trace](const key_type& _k) -> void {
             _trace.push_back(_k);
         });
         const std::vector<key_type> _expected_trace = {"Daniel", "Tomas", "Laura", "Doria"};
@@ -94,7 +94,7 @@ ICY_CASE("invisible_guest") {
             return 1u;
         });
         std::vector<key_type> _trace;
-        _from_tomas("Doria", [&_trace](const key_type& _k) -> void {
+        _from_tomas.trail("Doria", [&_trace](const key_type& _k) -> void {
             _trace.push_back(_k);
         });
         const std::vector<key_type> _expected_trace = {};

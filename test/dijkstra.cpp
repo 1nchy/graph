@@ -16,14 +16,14 @@ ICY_CASE("graph") {
         });
         std::vector<std::string> _trail;
         ICY_SUBCASE("to F") {
-            _from_a("F", [&_trail](const std::string& _k) -> void {
+            _from_a.trail("F", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             std::vector<std::string> _expected_trail = {};
             EXPECT_EQ(_trail, _expected_trail);
         }
         ICY_SUBCASE("to B") {
-            _from_a("B", [&_trail](const std::string& _k) -> void {
+            _from_a.trail("B", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             std::vector<std::string> _expected_trail = {"A", "C", "D", "B"};
@@ -36,7 +36,7 @@ ICY_CASE("graph") {
         });
         std::vector<std::string> _trail;
         ICY_SUBCASE("to A") {
-            _from_f("A", [&_trail](const std::string& _k) -> void {
+            _from_f.trail("A", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             std::vector<std::string> _expected_trail = {"F", "D", "B", "C", "A"};
@@ -54,7 +54,7 @@ ICY_CASE("multigraph") {
         });
         std::vector<std::string> _trail;
         ICY_SUBCASE("to H") {
-            _from_a("H", [&_trail](const std::string& _k) -> void {
+            _from_a.trail("H", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             std::vector<std::string> _expected_trail = {"A", "B", "E", "G", "H"};
@@ -67,7 +67,7 @@ ICY_CASE("multigraph") {
         });
         std::vector<std::string> _trail;
         ICY_SUBCASE("to F") {
-            _from_g("F", [&_trail](const std::string& _k) -> void {
+            _from_g.trail("F", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             std::vector<std::string> _expected_trail = {"G", "D", "A", "B", "C", "F"};
@@ -80,7 +80,7 @@ ICY_CASE("multigraph") {
         });
         std::vector<std::string> _trail;
         ICY_SUBCASE("to F") {
-            _from_h("F", [&_trail](const std::string& _k) -> void {
+            _from_h.trail("F", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             std::vector<std::string> _expected_trail = {};

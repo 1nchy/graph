@@ -49,8 +49,8 @@ template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash>
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash> struct vertex;
 namespace __details__::graph {
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct graph_base;
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra_trail;
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd_trail;
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra;
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd;
 }
 template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
 template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
@@ -331,8 +331,8 @@ public:
     template <typename _R> using edge_visitor = std::function<_R(const edge_type&)>;
     template <typename _R> using vertex_modifier = std::function<_R(vertex_type&)>;
     template <typename _R> using edge_modifier = std::function<_R(edge_type&)>;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct dijkstra_trail;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct floyd_trail;
+    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct dijkstra;
+    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct floyd;
 protected:
     graph_base() = default;
     graph_base(const graph_base&) {} // implement in derived class
@@ -461,7 +461,7 @@ public: // algorithm
      * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
      * @note can't handle negative weight edge
      */
-    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> dijkstra_trail<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
+    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
     /**
      * @brief floyd algorithm
      * @param _visitor edge visitor, _R(*)(const edge_type&)
@@ -469,7 +469,7 @@ public: // algorithm
      * (edge[i][j] == k -> shortest path from i to j via k, k may be equal to i)
      * @note can't handle negative weight loop
      */
-    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> floyd_trail<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
+    template <typename _R> auto floyd(edge_visitor<_R>&& _visitor) const -> graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
     auto bfs(const key_type& _k, vertex_modifier<void>&& _visitor) -> size_t;
     auto bfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t;
     auto dfs(const key_type& _k, vertex_modifier<void>&& _visitor) -> size_t;
@@ -482,7 +482,7 @@ protected:
     std::unordered_set<edge_type*> _edges;
 };
 
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra_trail {
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra {
 public:
     using base = graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>;
     using vertex_type = typename base::vertex_type;
@@ -492,21 +492,21 @@ public:
     using trailer = std::function<void(const key_type&)>;
     template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph_base;
 private:
-    dijkstra_trail(const base&, const key_type& _k, typename base::edge_visitor<cost_type>&&);
+    dijkstra(const base&, const key_type& _k, typename base::edge_visitor<cost_type>&&);
 public:
-    dijkstra_trail(const dijkstra_trail&) = default;
-    dijkstra_trail(dijkstra_trail&&) = default;
-    auto operator=(const dijkstra_trail&) -> dijkstra_trail& = delete;
-    auto operator=(dijkstra_trail&&) -> dijkstra_trail& = delete;
-    ~dijkstra_trail() = default;
+    dijkstra(const dijkstra&) = default;
+    dijkstra(dijkstra&&) = default;
+    auto operator=(const dijkstra&) -> dijkstra& = delete;
+    auto operator=(dijkstra&&) -> dijkstra& = delete;
+    ~dijkstra() = default;
 public:
-    auto operator()(const key_type&, trailer&&) const -> void;
+    auto trail(const key_type&, trailer&&) const -> void;
 private:
     const base& _g;
     std::unordered_map<key_type, std::pair<cost_type, key_type>> _predecessor;
     const key_type _k;
 };
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd_trail {
+template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd {
 public:
     using base = graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>;
     using vertex_type = typename base::vertex_type;
@@ -516,15 +516,15 @@ public:
     using trailer = std::function<void(const key_type&)>;
     template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph_base;
 private:
-    floyd_trail(const base&, typename base::edge_visitor<cost_type>&&);
+    floyd(const base&, typename base::edge_visitor<cost_type>&&);
 public:
-    floyd_trail(const floyd_trail&) = default;
-    floyd_trail(floyd_trail&&) = default;
-    auto operator=(const floyd_trail&) -> floyd_trail& = delete;
-    auto operator=(floyd_trail&&) -> floyd_trail& = delete;
-    ~floyd_trail() = default;
+    floyd(const floyd&) = default;
+    floyd(floyd&&) = default;
+    auto operator=(const floyd&) -> floyd& = delete;
+    auto operator=(floyd&&) -> floyd& = delete;
+    ~floyd() = default;
 public:
-    auto operator()(const key_type&, const key_type&, trailer&&) const -> void;
+    auto trail(const key_type&, const key_type&, trailer&&) const -> void;
 private:
     const base& _g;
     icy::graph<key_type, void, std::pair<cost_type, key_type>> _intermediary;
@@ -532,17 +532,17 @@ private:
 
 /// algorithm implement
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> dijkstra_trail<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc> {
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& _visitor) const -> graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc> {
     static_assert(std::is_arithmetic<_R>::value);
     if (!this->contains(_k)) {
         throw std::out_of_range("graph_base::dijkstra");
     }
-    return dijkstra_trail<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, _k, std::move(_visitor));
+    return graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, _k, std::move(_visitor));
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> floyd_trail<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc> {
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visitor) const -> graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc> {
     static_assert(std::is_arithmetic<_R>::value);
-    return floyd_trail<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, std::move(_visitor));
+    return graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, std::move(_visitor));
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _k, vertex_modifier<void>&& _modifier) -> size_t {
@@ -630,8 +630,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _k, vertex
 }
 
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
-dijkstra_trail<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
-dijkstra_trail(const base& _g, const key_type& _k, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g), _k(_k) {
+dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
+dijkstra(const base& _g, const key_type& _k, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g), _k(_k) {
     if (!_g.contains(_k)) { return; }
     // _s = {_k}, _u = all - {_k}
     std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`
@@ -665,7 +665,7 @@ dijkstra_trail(const base& _g, const key_type& _k, typename base::edge_visitor<c
     }
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
-dijkstra_trail<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::operator()(const key_type& _x, trailer&& _trailer) const -> void {
+dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, trailer&& _trailer) const -> void {
     std::function<void(const key_type&)> _M_dijkstra_trail = [&_M_dijkstra_trail, this, _trailer] (const key_type& _x) -> void {
         if (this->_k == _x) {
             _trailer(this->_k);
@@ -678,8 +678,8 @@ dijkstra_trail<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::operator()(const ke
     _M_dijkstra_trail(_x);
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
-floyd_trail<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
-floyd_trail(const base& _g, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g) {
+floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
+floyd(const base& _g, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g) {
     icy::graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : _g.vertices()) {
         _intermediary.insert(_k);
@@ -727,7 +727,7 @@ floyd_trail(const base& _g, typename base::edge_visitor<cost_type>&& _visitor) :
     }
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
-floyd_trail<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::operator()(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
+floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
     if (!_intermediary.contains(_x) || !_intermediary.contains(_y)) {
         return;
     }

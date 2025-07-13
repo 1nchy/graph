@@ -118,12 +118,12 @@ ICY_CASE("food chain") {
                 default: return 100;
             }
         });
-        std::vector<key_type> _trace_insect_fox;
-        _floyd("insect", "fox", [&_trace_insect_fox](const key_type& _k) -> void {
-            _trace_insect_fox.push_back(_k);
+        std::vector<key_type> _trail;
+        _floyd.trail("insect", "fox", [&_trail](const key_type& _k) -> void {
+            _trail.push_back(_k);
         });
-        const std::vector<key_type> _real_trace_insect_fox = {"insect", "lark", "fox"};
-        EXPECT_EQ(_trace_insect_fox, _real_trace_insect_fox);
+        const std::vector<key_type> _expected_trail = {"insect", "lark", "fox"};
+        EXPECT_EQ(_trail, _expected_trail);
     }
     ICY_SUBCASE("operator=") {
         icy::multigraph<std::string, void, relation_type> _mbio = _bio;
