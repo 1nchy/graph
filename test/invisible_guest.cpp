@@ -41,7 +41,7 @@ ICY_CASE("invisible_guest") {
     _movie.connect("Goodman", "Doria", HELP);
     _movie.connect("Tomas", "Laura", HELP);
 
-    _movie.get_vertex("Laura").set_value(false);
+    _movie.get_vertex("Laura")->set_value(false);
     _movie.connect("Tomas", "Doria", INVESTIGATE);
 
     EXPECT_EQ(_movie.order(), 6);
@@ -79,7 +79,7 @@ ICY_CASE("invisible_guest") {
     ICY_SUBCASE("bfs") {
         std::vector<bool> _alive;
         _alive.reserve(_movie.order());
-        _movie.bfs("Laura", [&_alive](const vertex_type& _v) {
+        _movie.bfs("Laura", [&_alive](const key_type& _k, const vertex_type& _v) {
             _alive.push_back(_v.value());
         });
         EXPECT_EQ(_alive.size(), 6);
@@ -107,5 +107,19 @@ ICY_CASE("invisible_guest") {
         EXPECT_EQ(_movie_alive.size(), 4);
 
         EXPECT_NE(_movie, _movie_alive);
+    }
+    ICY_SUBCASE("nobody alive") {
+        for (const auto& [_k, _v] : _movie.vertices()) {
+            _v->set_value(false);
+        }
+        for (const auto& _e : _movie.edges()) {
+            _e->set_value(NONE);
+        }
+        for (const auto& [_k, _v] : _movie.vertices()) {
+            EXPECT_FALSE(_v->value());
+        }
+        for (const auto& _e : _movie.edges()) {
+            EXPECT_EQ(_e->value(), NONE);
+        }
     }
 }

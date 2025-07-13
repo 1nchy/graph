@@ -327,9 +327,9 @@ public:
     using vertex_type = vertex<_Vk, _Multi, _Vv, _Ev, _Hash>;
     using edge_type = edge<_Ev, _Vk, _Multi, _Vv, _Hash>;
     using key_type = typename vertex_type::key_type;
-    template <typename _R> using vertex_visitor = std::function<_R(const vertex_type&)>;
+    template <typename _R> using vertex_visitor = std::function<_R(const key_type&, const vertex_type&)>;
     template <typename _R> using edge_visitor = std::function<_R(const edge_type&)>;
-    template <typename _R> using vertex_modifier = std::function<_R(vertex_type&)>;
+    template <typename _R> using vertex_modifier = std::function<_R(const key_type&, vertex_type&)>;
     template <typename _R> using edge_modifier = std::function<_R(edge_type&)>;
     template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct dijkstra;
     template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct floyd;
@@ -362,39 +362,33 @@ public:
      * @param _y the key of tail vertex
      * @return whether there is any edge between the specific keys
      */
-    inline auto adjacent(const key_type& _x, const key_type& _y) const -> bool { return contains(_x) && contains(_y) && get_vertex(_x).contains_to(_y); }
+    inline auto adjacent(const key_type& _x, const key_type& _y) const -> bool { return contains(_x) && contains(_y) && get_vertex(_x)->contains_to(_y); }
     /**
      * @param _x the key of head vertex
      * @param _y the key of tail vertex
      * @return the number of edge between the specific keys
      */
-    inline auto count(const key_type& _x, const key_type& _y) const -> size_t { return (contains(_x) && contains(_y)) ? get_vertex(_x).count_to(_y) : 0; }
+    inline auto count(const key_type& _x, const key_type& _y) const -> size_t { return (contains(_x) && contains(_y)) ? get_vertex(_x)->count_to(_y) : 0; }
     /**
      * @brief access vertex
      * @param _k the specific key
-     * @throw std::out_of_range if the specific key not exists
+     * @return vertex pointer
      */
-    inline auto get_vertex(const key_type& _k) -> vertex_type& { return *_vertices.at(_k); }
+    inline auto get_vertex(const key_type& _k) -> vertex_type* { return _vertices.contains(_k) ? _vertices.at(_k) : nullptr; }
     /**
      * @brief access vertex
      * @param _k the specific key
-     * @throw std::out_of_range if the specific key not exists
+     * @return vertex pointer
      */
-    inline auto get_vertex(const key_type& _k) const -> const vertex_type& { return *_vertices.at(_k); }
-    inline auto begin() { return _vertices.begin(); }
-    inline auto end() { return _vertices.end(); }
-    inline auto begin() const { return _vertices.begin(); }
-    inline auto end() const { return _vertices.end(); }
-    inline auto cbegin() const { return _vertices.cbegin(); }
-    inline auto cend() const { return _vertices.cend(); }
-    inline auto edge_begin() { return _edges.begin(); }
-    inline auto edge_end() { return _edges.end(); }
-    inline auto edge_begin() const { return _edges.begin(); }
-    inline auto edge_end() const { return _edges.end(); }
-    inline auto edge_cbegin() const { return _edges.cbegin(); }
-    inline auto edge_cend() const { return _edges.cend(); }
-    inline auto vertices() const { return _vertices; }
-    inline auto edges() const { return _edges; }
+    inline auto get_vertex(const key_type& _k) const -> const vertex_type* { return _vertices.contains(_k) ? _vertices.at(_k) : nullptr; }
+    /**
+     * @brief unordered_map<key_type, vertex_type*>
+     */
+    inline auto& vertices() const { return _vertices; }
+    /**
+     * @brief unordered_set<edge_type*>
+     */
+    inline auto& edges() const { return _edges; }
     /**
      * @brief insert vertex with specific key
      * @param _k the key of the vertex
@@ -412,7 +406,7 @@ public:
     auto erase(const key_type& _k) -> void {
         if (!contains(_k)) { return; }
         disconnect(_k);
-        this->_M_deallocate_vertex(&get_vertex(_k));
+        this->_M_deallocate_vertex(get_vertex(_k));
         _vertices.erase(_k);
     }
     /**
@@ -421,22 +415,22 @@ public:
      */
     auto disconnect(const key_type& _k) -> void {
         if (!contains(_k)) { return; }
-        vertex_type& _vertex = get_vertex(_k);
+        vertex_type* _vertex = get_vertex(_k);
         // erase edges, update other vertices
-        const auto _ins = _vertex.in();
+        const auto _ins = _vertex->in();
         for (auto _in = _ins.first; _in != _ins.second; ++_in) {
-            get_vertex(_in->first).erase_to(_k);
+            get_vertex(_in->first)->erase_to(_k);
             _edges.erase(_in->second);
             this->_M_deallocate_edge(_in->second);
         }
-        const auto _outs = _vertex.out();
+        const auto _outs = _vertex->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            get_vertex(_out->first).erase_from(_k);
+            get_vertex(_out->first)->erase_from(_k);
             _edges.erase(_out->second);
             this->_M_deallocate_edge(_out->second);
         }
         // update vertex
-        _vertex.clear();
+        _vertex->clear();
     }
     auto disconnect(const key_type& _x, const key_type& _y) -> void {
         if (!contains(_x) || !contains(_y)) { return; }
@@ -444,8 +438,8 @@ public:
             this->_edges.erase(std::addressof(_e));
             this->_M_deallocate_edge(std::addressof(_e));
         });
-        this->get_vertex(_x).erase_to(_y);
-        this->get_vertex(_y).erase_from(_x);
+        this->get_vertex(_x)->erase_to(_y);
+        this->get_vertex(_y)->erase_from(_x);
     }
     auto clear() -> void {
         for (auto [_k, _v] : _vertices) { this->_M_deallocate_vertex(_v); }
@@ -589,85 +583,85 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& _visi
     return graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, std::move(_visitor));
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _k, vertex_modifier<void>&& _modifier) -> size_t {
-    if (!contains(_k)) { return 0; }
-    std::queue<vertex_type*> _q;
-    std::unordered_set<vertex_type*> _s; // record vertex whether in queue before
-    _q.push(&get_vertex(_k));
-    _s.insert(_q.front());
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _key, vertex_modifier<void>&& _modifier) -> size_t {
+    if (!contains(_key)) { return 0; }
+    std::queue<key_type> _q;
+    std::unordered_set<key_type> _s; // record vertex whether in queue before
+    _q.emplace(_key);
+    _s.insert(_key);
     size_t _cnt = 0;
     while (!_q.empty()) {
-        vertex_type* const _vertex = _q.front(); _q.pop();
-        _modifier(*_vertex); ++_cnt;
-        const auto _outs = _vertex->out();
+        const key_type& _k = _q.front(); _q.pop();
+        vertex_type* const _v = get_vertex(_k);
+        _modifier(_k, *_v); ++_cnt;
+        const auto _outs = _v->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            vertex_type* const _v = &get_vertex(_out->first);
-            if (_s.contains(_v)) { continue; }
-            _q.push(_v);
-            _s.insert(_v);
+            if (_s.contains(_out->first)) { continue; }
+            _q.emplace(_out->first);
+            _s.insert(_out->first);
         }
     }
     return _cnt;
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t {
-    if (!contains(_k)) { return 0; }
-    std::queue<const vertex_type*> _q;
-    std::unordered_set<const vertex_type*> _s; // record vertex whether in queue before
-    _q.push(&get_vertex(_k));
-    _s.insert(_q.front());
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _key, vertex_visitor<void>&& _visitor) const -> size_t {
+    if (!contains(_key)) { return 0; }
+    std::queue<key_type> _q;
+    std::unordered_set<key_type> _s; // record vertex whether in queue before
+    _q.emplace(_key);
+    _s.insert(_key);
     size_t _cnt = 0;
     while (!_q.empty()) {
-        const vertex_type* const _vertex = _q.front(); _q.pop();
-        _visitor(*_vertex); ++_cnt;
-        const auto _outs = _vertex->out();
+        const key_type& _k = _q.front(); _q.pop();
+        const vertex_type* const _v = get_vertex(_k);
+        _visitor(_k, *_v); ++_cnt;
+        const auto _outs = _v->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            const vertex_type* const _v = &get_vertex(_out->first);
-            if (_s.contains(_v)) { continue; }
-            _q.push(_v);
-            _s.insert(_v);
+            if (_s.contains(_out->first)) { continue; }
+            _q.emplace(_out->first);
+            _s.insert(_out->first);
         }
     }
     return _cnt;
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _k, vertex_modifier<void>&& _modifier) -> size_t {
-    if (!contains(_k)) { return 0; }
-    std::vector<vertex_type*> _vec;
-    std::unordered_set<vertex_type*> _s; // record vertex whether in stack before
-    _vec.push_back(&get_vertex(_k));
-    _s.insert(_vec.back());
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& _modifier) -> size_t {
+    if (!contains(_key)) { return 0; }
+    std::vector<key_type> _vec;
+    std::unordered_set<key_type> _s; // record vertex whether in stack before
+    _vec.push_back(_key);
+    _s.insert(_key);
     size_t _cnt = 0;
     while (!_vec.empty()) {
-        vertex_type* const _vertex = _vec.back(); _vec.pop_back();
-        _modifier(*_vertex); ++_cnt;
-        const auto _outs = _vertex->out();
+        const key_type& _k = _vec.back(); _vec.pop_back();
+        vertex_type* const _v = get_vertex(_k);
+        _modifier(_k, *_v); ++_cnt;
+        const auto _outs = _v->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            vertex_type* const _v = &get_vertex(_out->first);
-            if (_s.contains(_v)) { continue; }
-            _vec.push_back(_v);
-            _s.insert(_v);
+            if (_s.contains(_out->first)) { continue; }
+            _vec.push_back(_out->first);
+            _s.insert(_out->first);
         }
     }
     return _cnt;
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _k, vertex_visitor<void>&& _visitor) const -> size_t {
-    if (!contains(_k)) { return 0; }
-    std::vector<const vertex_type*> _vec;
-    std::unordered_set<const vertex_type*> _s; // record vertex whether in stack before
-    _vec.push_back(&get_vertex(_k));
-    _s.insert(_vec.back());
+graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& _visitor) const -> size_t {
+    if (!contains(_key)) { return 0; }
+    std::vector<key_type> _vec;
+    std::unordered_set<key_type> _s; // record vertex whether in stack before
+    _vec.push_back(_key);
+    _s.insert(_key);
     size_t _cnt = 0;
     while (!_vec.empty()) {
-        const vertex_type* const _vertex = _vec.back(); _vec.pop_back();
-        _modifier(*_vertex); ++_cnt;
-        const auto _outs = _vertex->out();
+        const key_type& _k = _vec.back(); _vec.pop_back();
+        const vertex_type* const _v = get_vertex(_k);
+        _visitor(_k, *_v); ++_cnt;
+        const auto _outs = _v->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            const vertex_type* const _v = &get_vertex(_out->first);
-            if (_s.contains(_v)) { continue; }
-            _vec.push_back(_v);
-            _s.insert(_v);
+            if (_s.contains(_out->first)) { continue; }
+            _vec.push_back(_out->first);
+            _s.insert(_out->first);
         }
     }
     return _cnt;
@@ -969,16 +963,16 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const graph& _rhs) const -> bool
         if (!this->contains(_k)) {
             return false;
         }
-        const vertex_type& _vertex = this->get_vertex(_k);
-        const vertex_type& _rhs_vertex = _rhs.get_vertex(_k);
-        if (_vertex != _rhs_vertex || _vertex.indegree() != _rhs_vertex.indegree() || _vertex.outdegree() != _rhs_vertex.outdegree()) {
+        const vertex_type* _vertex = this->get_vertex(_k);
+        const vertex_type* _rhs_vertex = _rhs.get_vertex(_k);
+        if (*_vertex != *_rhs_vertex || _vertex->indegree() != _rhs_vertex->indegree() || _vertex->outdegree() != _rhs_vertex->outdegree()) {
             return false;
         }
         _remains.push(_k);
     }
     while (!_remains.empty()) {
         const key_type& _k = _remains.front(); _remains.pop();
-        const auto _outs = _rhs.get_vertex(_k).out();
+        const auto _outs = _rhs.get_vertex(_k)->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
             const edge_type* _e = this->get_edge(_k, _out->first);
             if (_e == nullptr || *_e != *_out->second) {
@@ -994,21 +988,21 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const graph& _rhs) const -> bool
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> edge_type* {
-    return this->get_vertex(_x).edge_to(_y);
+    return this->get_vertex(_x)->edge_to(_y);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) const -> const edge_type* {
-    return this->get_vertex(_x).edge_to(_y);
+    return this->get_vertex(_x)->edge_to(_y);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename... _Args> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::connect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void {
     if (!this->contains(_x) || !this->contains(_y) || _x == _y || this->adjacent(_x, _y)) { return; }
-    vertex_type& _from = this->get_vertex(_x);
-    vertex_type& _to = this->get_vertex(_y);
-    edge_type* const _e = this->_M_allocate_edge(_x, &_from, _y, &_to, std::forward<_Args>(_args)...);
+    vertex_type* const _from = this->get_vertex(_x);
+    vertex_type* const _to = this->get_vertex(_y);
+    edge_type* const _e = this->_M_allocate_edge(_x, _from, _y, _to, std::forward<_Args>(_args)...);
     this->_edges.insert(_e);
-    _from.insert_to(_y, _e);
-    _to.insert_from(_x, _e);
+    _from->insert_to(_y, _e);
+    _to->insert_from(_x, _e);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename... _Args> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void {
@@ -1025,12 +1019,12 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const graph& _rhs) -> void {
     while (!_remains.empty()) {
         const key_type& _k = _remains.front(); _remains.pop();
         if (!this->contains(_k)) {
-            this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
+            this->insert(_k, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_k)));
         }
-        const auto _outs = _rhs.get_vertex(_k).out();
+        const auto _outs = _rhs.get_vertex(_k)->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
             if (!this->contains(_out->first)) {
-                this->insert(_out->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_out->first)));
+                this->insert(_out->first, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_out->first)));
             }
             this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
         }
@@ -1057,18 +1051,18 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::for_each(const key_type& _x, const key_type
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename __Hash, typename __Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const graph<_Vk, _Vv, _Ev, __Hash, __Alloc>& _rhs) {
     std::queue<key_type> _remains;
-    for (const auto& [_k, _v] : _rhs) {
+    for (const auto& [_k, _v] : _rhs.vertices()) {
         _remains.push(_k);
     }
     while (!_remains.empty()) {
         const key_type& _k = _remains.front(); _remains.pop();
         if (!this->contains(_k)) {
-            this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
+            this->insert(_k, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_k)));
         }
-        const auto _outs = _rhs.get_vertex(_k).out();
+        const auto _outs = _rhs.get_vertex(_k)->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
             if (!this->contains(_out->first)) {
-                this->insert(_out->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_out->first)));
+                this->insert(_out->first, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_out->first)));
             }
             this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
         }
@@ -1095,16 +1089,16 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const multigraph& _rhs) con
         if (!this->contains(_k)) {
             return false;
         }
-        const vertex_type& _vertex = this->get_vertex(_k);
-        const vertex_type& _rhs_vertex = _rhs.get_vertex(_k);
-        if (_vertex != _rhs_vertex || _vertex.indegree() != _rhs_vertex.indegree() || _vertex.outdegree() != _rhs_vertex.outdegree()) {
+        const vertex_type* _vertex = this->get_vertex(_k);
+        const vertex_type* _rhs_vertex = _rhs.get_vertex(_k);
+        if (*_vertex != *_rhs_vertex || _vertex->indegree() != _rhs_vertex->indegree() || _vertex->outdegree() != _rhs_vertex->outdegree()) {
             return false;
         }
         _remains.push(_k);
     }
     while (!_remains.empty()) {
         const key_type& _k = _remains.front(); _remains.pop();
-        const auto _outs = _rhs.get_vertex(_k).out();
+        const auto _outs = _rhs.get_vertex(_k)->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
             const auto _edges = this->get_edge(_k, _out->first);
             if (std::none_of(_edges.first, _edges.second, [_out](const auto& _iter) {
@@ -1122,21 +1116,21 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const multigraph& _rhs) con
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> std::pair<iterator, iterator> {
-    return this->get_vertex(_x).edge_to(_y);
+    return this->get_vertex(_x)->edge_to(_y);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) const -> std::pair<const_iterator, const_iterator> {
-    return this->get_vertex(_x).edge_to(_y);
+    return this->get_vertex(_x)->edge_to(_y);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename... _Args> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::connect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void {
     if (!this->contains(_x) || !this->contains(_y)) { return; }
-    vertex_type& _from = this->get_vertex(_x);
-    vertex_type& _to = this->get_vertex(_y);
-    edge_type* const _e = this->_M_allocate_edge(_x, &_from, _y, &_to, std::forward<_Args>(_args)...);
+    vertex_type* const _from = this->get_vertex(_x);
+    vertex_type* const _to = this->get_vertex(_y);
+    edge_type* const _e = this->_M_allocate_edge(_x, _from, _y, _to, std::forward<_Args>(_args)...);
     this->_edges.insert(_e);
-    _from.insert_to(_y, _e);
-    _to.insert_from(_x, _e);
+    _from->insert_to(_y, _e);
+    _to->insert_from(_x, _e);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename... _Args> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void {
@@ -1153,12 +1147,12 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::_M_assign(const multigraph& _rhs) -> v
     while (!_remains.empty()) {
         const key_type& _k = _remains.front(); _remains.pop();
         if (!this->contains(_k)) {
-            this->insert(_k, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_k)));
+            this->insert(_k, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_k)));
         }
-        const auto _outs = _rhs.get_vertex(_k).out();
+        const auto _outs = _rhs.get_vertex(_k)->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
             if (!this->contains(_out->first)) {
-                this->insert(_out->first, static_cast<const typename vertex_type::base&>(_rhs.get_vertex(_out->first)));
+                this->insert(_out->first, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_out->first)));
             }
             this->connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
         }

@@ -46,10 +46,9 @@ ICY_CASE("food chain") {
     EXPECT_EQ(_bio.size(), 11);
 
     // COMPETITION. if two organisms prey on the same species and there is no relationship between them, they are in a competitive relationship.
-    for (auto _i = _bio.begin(); _i != _bio.end(); ++_i) {
-        vertex_type& _v = *_i->second;
+    for (const auto& [_k, _v] : _bio.vertices()) {
         std::unordered_set<key_type> _s;
-        const auto _out = _v.out();
+        const auto _out = _v->out();
         for (auto _j = _out.first; _j != _out.second; ++_j) {
             if (_j->second->value() == PREDATION) {
                 for (const auto& _k : _s) {
@@ -67,10 +66,10 @@ ICY_CASE("food chain") {
     EXPECT_EQ(_bio.get_edge("eagle", "fox")->value(), COMPETITION);
 
     // PARASITISM parasites are transmitted along the predator food chain
-    vertex_type& _v = _bio.get_vertex("parasite");
+    vertex_type* _v = _bio.get_vertex("parasite");
     std::queue<key_type> _q;
     std::unordered_set<key_type> _victim;
-    const auto _out = _v.out();
+    const auto _out = _v->out();
     for (auto _i = _out.first; _i != _out.second; ++_i) {
         if (_i->second->value() == PARASITISM) {
             _q.push(_i->first);
@@ -78,8 +77,7 @@ ICY_CASE("food chain") {
     }
     while (!_q.empty()) {
         const key_type& _k = _q.front(); _q.pop();
-        vertex_type& _v = _bio.get_vertex(_k);
-        const auto _out = _v.out();
+        const auto _out = _bio.get_vertex(_k)->out();
         for (auto _i = _out.first; _i != _out.second; ++_i) {
             if (_i->second->value() == PREDATION && !_victim.contains(_i->first)) {
                 _q.push(_i->first);
@@ -94,10 +92,10 @@ ICY_CASE("food chain") {
     EXPECT_EQ(_bio.size(), 20);
     EXPECT_EQ(_bio.get_edge("parasite", "rabbit"), nullptr);
     EXPECT_EQ(_bio.get_edge("parasite", "fox")->value(), PARASITISM);
-    EXPECT_EQ(_bio.get_vertex("rabbit").indegree(), 3);
-    EXPECT_EQ(_bio.get_vertex("rabbit").outdegree(), 4);
-    EXPECT_EQ(_bio.get_vertex("lark").indegree(), 5);
-    EXPECT_EQ(_bio.get_vertex("lark").outdegree(), 3);
+    EXPECT_EQ(_bio.get_vertex("rabbit")->indegree(), 3);
+    EXPECT_EQ(_bio.get_vertex("rabbit")->outdegree(), 4);
+    EXPECT_EQ(_bio.get_vertex("lark")->indegree(), 5);
+    EXPECT_EQ(_bio.get_vertex("lark")->outdegree(), 3);
 
     ICY_SUBCASE("without insect") {
         auto _bio_without_insect = _bio;
