@@ -84,7 +84,7 @@ ICY_CASE("graph") {
     }
 }
 ICY_CASE("multigraph") {
-    const auto _g = multigraph_instance<1>();
+    const auto _g = multigraph_instance<0>();
     using vertex_type = typename decltype(_g)::vertex_type;
     using edge_type = typename decltype(_g)::edge_type;
     ICY_SUBCASE("from A") {
@@ -92,13 +92,13 @@ ICY_CASE("multigraph") {
             return _e.value();
         });
         std::vector<std::string> _trail;
-        ICY_SUBCASE("to H") {
-            _from_a.trail("H", [&_trail](const std::string& _k) -> void {
+        ICY_SUBCASE("to E") {
+            _from_a.trail("E", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
-            const std::vector<std::string> _expected_trail = {"A", "B", "E", "G", "H"};
+            const std::vector<std::string> _expected_trail = {"A", "B", "C", "D", "E"};
             EXPECT_EQ(_trail, _expected_trail);
-            EXPECT_EQ(_from_a.cost("H"), 30);
+            EXPECT_EQ(_from_a.cost("E"), 10);
         }
         ICY_SUBCASE("to Z") {
             EXPECT_THROW(
@@ -113,32 +113,32 @@ ICY_CASE("multigraph") {
             );
         }
     }
+    ICY_SUBCASE("from D") {
+        const auto _from_d = _g.dijkstra<unsigned>("D", [](const edge_type& _e) -> unsigned {
+            return _e.value();
+        });
+        std::vector<std::string> _trail;
+        ICY_SUBCASE("to G") {
+            _from_d.trail("G", [&_trail](const std::string& _k) -> void {
+                _trail.push_back(_k);
+            });
+            const std::vector<std::string> _expected_trail = {"D", "B", "F", "G"};
+            EXPECT_EQ(_trail, _expected_trail);
+            EXPECT_EQ(_from_d.cost("G"), 8);
+        }
+    }
     ICY_SUBCASE("from G") {
         const auto _from_g = _g.dijkstra<unsigned>("G", [](const edge_type& _e) -> unsigned {
             return _e.value();
         });
         std::vector<std::string> _trail;
-        ICY_SUBCASE("to F") {
-            _from_g.trail("F", [&_trail](const std::string& _k) -> void {
-                _trail.push_back(_k);
-            });
-            const std::vector<std::string> _expected_trail = {"G", "D", "A", "B", "C", "F"};
-            EXPECT_EQ(_trail, _expected_trail);
-            EXPECT_EQ(_from_g.cost("F"), 52);
-        }
-    }
-    ICY_SUBCASE("from H") {
-        const auto _from_h = _g.dijkstra<unsigned>("H", [](const edge_type& _e) -> unsigned {
-            return _e.value();
-        });
-        std::vector<std::string> _trail;
-        ICY_SUBCASE("to F") {
-            _from_h.trail("F", [&_trail](const std::string& _k) -> void {
+        ICY_SUBCASE("to I") {
+            _from_g.trail("I", [&_trail](const std::string& _k) -> void {
                 _trail.push_back(_k);
             });
             const std::vector<std::string> _expected_trail = {};
             EXPECT_EQ(_trail, _expected_trail);
-            EXPECT_EQ(_from_h.cost("F"), std::numeric_limits<cost_type>::max());
+            EXPECT_EQ(_from_g.cost("I"), std::numeric_limits<cost_type>::max());
         }
     }
     ICY_SUBCASE("from Z") {

@@ -73,36 +73,36 @@ ICY_CASE("graph") {
     }
 }
 ICY_CASE("multigraph") {
-    const auto _g = multigraph_instance<1>();
+    const auto _g = multigraph_instance<0>();
     using vertex_type = typename decltype(_g)::vertex_type;
     using edge_type = typename decltype(_g)::edge_type;
     const auto _floyd = _g.floyd<unsigned>([](const edge_type& _e) -> unsigned {
         return _e.value();
     });
     std::vector<std::string> _trail;
-    ICY_SUBCASE("from A to H") {
-        _floyd.trail("A", "H", [&_trail](const std::string& _k) -> void {
+    ICY_SUBCASE("from A to E") {
+        _floyd.trail("A", "E", [&_trail](const std::string& _k) -> void {
             _trail.push_back(_k);
         });
-        std::vector<std::string> _expected_trail = {"A", "B", "E", "G", "H"};
+        std::vector<std::string> _expected_trail = {"A", "B", "C", "D", "E"};
         EXPECT_EQ(_trail, _expected_trail);
-        EXPECT_EQ(_floyd.cost("A", "H"), 30);
+        EXPECT_EQ(_floyd.cost("A", "E"), 10);
     }
-    ICY_SUBCASE("from G to F") {
-        _floyd.trail("G", "F", [&_trail](const std::string& _k) -> void {
+    ICY_SUBCASE("from D to G") {
+        _floyd.trail("D", "G", [&_trail](const std::string& _k) -> void {
             _trail.push_back(_k);
         });
-        std::vector<std::string> _expected_trail = {"G", "D", "A", "B", "C", "F"};
+        std::vector<std::string> _expected_trail = {"D", "B", "F", "G"};
         EXPECT_EQ(_trail, _expected_trail);
-        EXPECT_EQ(_floyd.cost("G", "F"), 52);
+        EXPECT_EQ(_floyd.cost("D", "G"), 8);
     }
-    ICY_SUBCASE("from H to D") {
-        _floyd.trail("H", "D", [&_trail](const std::string& _k) -> void {
+    ICY_SUBCASE("from G to I") {
+        _floyd.trail("G", "I", [&_trail](const std::string& _k) -> void {
             _trail.push_back(_k);
         });
         std::vector<std::string> _expected_trail = {};
         EXPECT_EQ(_trail, _expected_trail);
-        EXPECT_EQ(_floyd.cost("H", "D"), std::numeric_limits<cost_type>::max());
+        EXPECT_EQ(_floyd.cost("G", "I"), std::numeric_limits<cost_type>::max());
     }
     ICY_SUBCASE("from X to Y") {
         EXPECT_THROW(

@@ -91,22 +91,39 @@ template <> auto multigraph_instance<0>() -> TYPE(icy::multigraph) {
     BUILD_VERTEX(C, c);
     BUILD_VERTEX(D, d);
     BUILD_VERTEX(E, E);
+    BUILD_VERTEX(F, f);
+    BUILD_VERTEX(G, g);
+    BUILD_VERTEX(I, I);
     BUILD_EDGE(A, B, 2);
-    BUILD_EDGE(A, C, 3);
+    BUILD_EDGE(A, C, 5);
     BUILD_EDGE(B, A, 2);
     BUILD_EDGE(B, C, 2);
     BUILD_EDGE(B, C, 4);
     BUILD_EDGE(B, C, 6);
+    BUILD_EDGE(C, B, 3);
     BUILD_EDGE(C, D, 2);
-    BUILD_EDGE(D, A, 4);
+    BUILD_EDGE(D, A, 8);
     BUILD_EDGE(D, B, 3);
     BUILD_EDGE(D, D, 1);
-    BUILD_EDGE(D, E, 2);
+    BUILD_EDGE(D, E, 6);
     BUILD_EDGE(D, E, 4);
-    BUILD_EDGE(E, A, 2);
+    BUILD_EDGE(E, A, 12);
     BUILD_EDGE(E, C, 3);
+    BUILD_EDGE(A, F, 4);
+    BUILD_EDGE(B, F, 3);
+    BUILD_EDGE(F, G, 2);
+    BUILD_EDGE(F, G, 4);
+    BUILD_EDGE(G, F, 6);
+    BUILD_EDGE(G, A, 7);
+    BUILD_EDGE(G, D, 9);
+    BUILD_EDGE(G, D, 11);
+    BUILD_EDGE(I, D, 4);
+    BUILD_EDGE(I, D, 7);
     BUILD_END;
 }
+/**
+ * @brief disconnected multigraph
+ */
 template <> auto multigraph_instance<1>() -> TYPE(icy::multigraph) {
     BUILD_BEGIN(icy::multigraph);
     BUILD_VERTEX(A, a);
