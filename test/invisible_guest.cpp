@@ -69,22 +69,10 @@ ICY_CASE("invisible_guest") {
         const auto _floyd = _movie.floyd<unsigned>([](const edge_type&) -> unsigned {
             return 1u;
         });
-        std::function<std::vector<key_type>(const key_type& _i, const key_type& _j)> get_trace = 
-        [&get_trace, &_floyd](const key_type& _i, const key_type& _j) -> std::vector<key_type> {
-            assert(_floyd.contains(_i) && _floyd.contains(_j));
-            if (!_floyd.adjacent(_i, _j)) { return {}; }
-            if (_i == _j) { return {_i}; }
-            const key_type& _k = _floyd.get_edge(_i, _j)->value().second;
-            assert(_k != _j);
-            if (_i == _k) { return {_i, _j}; }
-            auto _front = get_trace(_i, _k);
-            auto _back = get_trace(_k, _j);
-            assert(!_front.empty() && !_back.empty());
-            assert(_front.back() == _back.front());
-            _front.insert(_front.end(), _back.begin() + 1, _back.end());
-            return _front;
-        };
-        const auto _trace = get_trace("Daniel", "Doria");
+        std::vector<key_type> _trace;
+        _floyd("Daniel", "Doria", [&_trace](const key_type& _k) -> void {
+            _trace.push_back(_k);
+        });
         const std::vector<key_type> _expected_trace = {"Daniel", "Tomas", "Laura", "Doria"};
         EXPECT_EQ(_trace, _expected_trace);
     }
@@ -105,7 +93,12 @@ ICY_CASE("invisible_guest") {
         const auto _from_tomas = _movie_alive.dijkstra<unsigned>("Tomas", [](const edge_type&) -> unsigned {
             return 1u;
         });
-        EXPECT_FALSE(_from_tomas.contains("Doria"));
+        std::vector<key_type> _trace;
+        _from_tomas("Doria", [&_trace](const key_type& _k) -> void {
+            _trace.push_back(_k);
+        });
+        const std::vector<key_type> _expected_trace = {};
+        EXPECT_EQ(_trace, _expected_trace);
         EXPECT_EQ(_movie_alive.order(), 5);
         EXPECT_EQ(_movie_alive.size(), 9);
 
