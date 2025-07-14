@@ -488,7 +488,7 @@ public:
     using trailer = std::function<void(const key_type&)>;
     template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph_base;
 private:
-    dijkstra(const base&, const key_type& _k, typename base::edge_visitor<cost_type>&&);
+    dijkstra(const base&, const key_type& _k, typename base::template edge_visitor<cost_type>&&);
 public:
     dijkstra(const dijkstra&) = default;
     dijkstra(dijkstra&&) = default;
@@ -533,7 +533,7 @@ public:
     using trailer = std::function<void(const key_type&)>;
     template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph_base;
 private:
-    floyd(const base&, typename base::edge_visitor<cost_type>&&);
+    floyd(const base&, typename base::template edge_visitor<cost_type>&&);
 public:
     floyd(const floyd&) = default;
     floyd(floyd&&) = default;
@@ -669,7 +669,7 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vert
 
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
 dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
-dijkstra(const base& _g, const key_type& _k, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g), _k(_k) {
+dijkstra(const base& _g, const key_type& _k, typename base::template edge_visitor<cost_type>&& _visitor) : _g(_g), _k(_k) {
     if (!_g.contains(_k)) { return; }
     // _s = {_k}, _u = all - {_k}
     std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`
@@ -733,7 +733,7 @@ dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x) 
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
 floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
-floyd(const base& _g, typename base::edge_visitor<cost_type>&& _visitor) : _g(_g) {
+floyd(const base& _g, typename base::template edge_visitor<cost_type>&& _visitor) : _g(_g) {
     icy::graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : _g.vertices()) {
         _intermediary.insert(_k);
