@@ -14,6 +14,18 @@
 
 namespace icy {
 
+namespace {
+/**
+ * @return whether `_s > _a + _b`, no overflow
+ */
+template <typename _Tp> auto greater_than(_Tp _s, _Tp _a, _Tp _b) -> bool {
+    static_assert(std::is_arithmetic<_Tp>::value);
+    if (_s > _a) { return _s - _a > _b; }
+    if (_s > _b) { return _s - _b > _a; }
+    return false;
+};
+}
+
 namespace __details__::graph {
 template <typename _Tp> struct storage;
 template <typename _Tp> struct storage {
@@ -672,36 +684,54 @@ dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
 dijkstra(const base& _g, const key_type& _k, typename base::template edge_visitor<cost_type>&& _visitor) : _g(_g), _k(_k) {
     if (!_g.contains(_k)) { return; }
     // _s = {_k}, _u = all - {_k}
-    std::vector<std::pair<cost_type, key_type>> _costs; // cost from `_s` to `_u`
-    _costs.reserve(_g.order() - 1);
+    using element_type = std::pair<cost_type, key_type>;
+    auto greater_cost = [](const element_type& _x, const element_type& _y) -> bool {
+        return _x.first > _y.first;
+    };
+    std::priority_queue<element_type, std::vector<element_type>, decltype(greater_cost)> _q(greater_cost);
+    std::unordered_set<key_type> _u;
+    _u.reserve(_g.order() - 1);
     for (const auto& [_key, _vertex] : _g.vertices()) {
         if (_k == _key) { continue; }
-        _costs.emplace_back(std::numeric_limits<cost_type>::max(), _key);
-    }
-    key_type _key = _k;
-    while (!_costs.empty()) {
-        // update `_costs` and `_predecessor`
-        for (auto _i = _costs.begin(); _i != _costs.end(); ++_i) {
-            _g.for_each(_key, _i->second, [this, _i, &_key, &_visitor](const edge_type& _e) {
-                const cost_type _cost = _visitor(_e);
-                if (_i->first > _cost) {
-                    _i->first = _cost;
-                    this->_predecessor[_i->second] = std::make_pair(
-                        _cost + (this->_predecessor.contains(_key) ? this->_predecessor.at(_key).first : 0), _key
-                    );
-                }
-            });
-        }
-        // choose lowest one (check max)
-        const auto _lowest = std::min_element(_costs.cbegin(), _costs.cend(), [](const auto& _x, const auto& _y) {
-            return _x.first < _y.first;
+        _u.insert(_key);
+        cost_type _c = std::numeric_limits<cost_type>::max();
+        _g.for_each(_k, _key, [this, &_c, &_k, &_visitor](const edge_type& _e) {
+            _c = std::min(_c, _visitor(_e));
+            this->_predecessor[_e.out_key()] = std::make_pair(_c, _k);
         });
-        if (_lowest == _costs.cend() || _lowest->first == std::numeric_limits<cost_type>::max()) {
-            break;
+        _q.emplace(_c, _key);
+    }
+    auto get_cost = [this, &_k](const key_type& _x) -> cost_type { // cost from `_k` to `_x`
+        if (_x == _k) { return 0; }
+        if (this->_predecessor.contains(_x)) {
+            return this->_predecessor.at(_x).first;
         }
-        // update `_key`, erase from `_costs`
-        _key = _lowest->second;
-        _costs.erase(_lowest);
+        return std::numeric_limits<cost_type>::max();
+    };
+    /**
+     * @brief set cost into `_predecessor`
+     * @param _x the key
+     * @param _pre the predecessor key of the `_x`
+     * @param _c the cost from `_pre` to `_x`
+     */
+    auto set_cost = [this, &get_cost](const key_type& _x, const key_type& _pre, cost_type _c) -> void {
+        this->_predecessor[_x] = std::make_pair(get_cost(_pre) + _c, _pre);
+    };
+    while (!_q.empty()) {
+        const element_type _e = _q.top(); _q.pop();
+        if (!_u.contains(_e.second)) { continue; }
+        _u.erase(_e.second);
+        if (_e.first == std::numeric_limits<cost_type>::max()) { break; }
+        // update
+        const auto _outs = _g.get_vertex(_e.second)->out();
+        for (auto _i = _outs.first; _i != _outs.second; ++_i) { // _i -> <key_type, edge_type*>
+            if (!_u.contains(_i->first)) { continue; }
+            const cost_type _cost = _visitor(*_i->second); // cost from `_e.second` to `_i->first`
+            if (greater_than(get_cost(_i->first), get_cost(_e.second), _cost)) {
+                set_cost(_i->first, _e.second, _cost);
+                _q.emplace(_cost, _i->first);
+            }
+        }
     }
 }
 template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
@@ -758,11 +788,6 @@ floyd(const base& _g, typename base::template edge_visitor<cost_type>&& _visitor
             set_intermediary(_ik, _ok, _cost, _ik); //for graph and multigraph
         }
     }
-    auto greater_than = [](cost_type _s, cost_type _a, cost_type _b) -> bool { // whether `_s > _a + _b`, no overflow
-        if (_s > _a) { return _s - _a > _b; }
-        if (_s > _b) { return _s - _b > _a; }
-        return false;
-    };
     for (const auto& [_k, _kv] : _g.vertices()) {
         for (const auto& [_i, _iv] : _g.vertices()) {
             if (_i == _k) { continue; }
