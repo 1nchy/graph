@@ -28,7 +28,7 @@ ICY_CASE("graph") {
         }
         size_t _upper_cnt = 0;
         while (!_s.empty()) { // update all characters to lower case
-            _g.dfs(*_s.begin(), [&_s, &_upper_cnt](const key_type& _k, vertex_type& _v) {
+            _g.bfs(*_s.begin(), [&_s, &_upper_cnt](const key_type& _k, vertex_type& _v) {
                 if (!_s.contains(_k)) {
                     return;
                 }
