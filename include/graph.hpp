@@ -324,13 +324,13 @@ public:
     auto operator==(const edge_type& _rhs) const -> bool { return base::operator==(_rhs); }
     auto operator!=(const edge_type& _rhs) const -> bool { return base::operator!=(_rhs); }
 public:
-    // auto in() const -> const vertex_type& { return *_in.second; }
-    // auto out() const -> const vertex_type& { return *_out.second; }
-    // auto in_key() const -> const key_type& { return _in.first; }
-    // auto out_key() const -> const key_type& { return _out.first; }
+    auto either() const -> const vertex_type&;
+    auto either_key() const -> const key_type&;
+    auto other(const key_type&) const -> const vertex_type&;
+    auto other_key(const key_type&) const -> const key_type&;
 private:
-    const std::pair<key_type, vertex_type*> _in;
-    const std::pair<key_type, vertex_type*> _out;
+    const std::pair<key_type, vertex_type*> _x;
+    const std::pair<key_type, vertex_type*> _y;
 };
 
 // vertex<true> public implement
@@ -370,7 +370,27 @@ base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
 template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash>
 template <typename... _Args> edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::
 edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
-base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
+base(std::forward<_Args>(_args)...), _x(_xk, _x), _y(_yk, _y) {}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
+edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::either() const -> const vertex_type& {
+    return _x.second;
+}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
+edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::either_key() const -> const key_type& {
+    return _x.first;
+}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
+edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::other(const key_type& _k) const -> const vertex_type& {
+    if (_k == _x.first) { return _x.second; }
+    if (_k == _y.first) { return _y.second; }
+    throw std::out_of_range("edge<UNDIRECTED>::other(...)");
+}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
+edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::other_key(const key_type& _k) const -> const key_type& {
+    if (_k == _x.first) { return _x.first; }
+    if (_k == _y.first) { return _y.first; }
+    throw std::out_of_range("edge<UNDIRECTED>::other_key(...)");
+}
 
 
 namespace __details__::graph {
