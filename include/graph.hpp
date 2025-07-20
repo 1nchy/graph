@@ -27,6 +27,8 @@ template <typename _Tp> auto greater_than(_Tp _s, _Tp _a, _Tp _b) -> bool {
 }
 
 namespace __details__::graph {
+enum type { SIMPLE, MULTI, };
+enum direction { DIRECTED, UNDIRECTED, };
 template <typename _Tp> struct storage;
 template <typename _Tp> struct storage {
 public:
@@ -57,22 +59,24 @@ public:
 };
 }
 
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> struct edge;
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash> struct vertex;
+template <typename _Ev, __details__::graph::direction _Gd, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> struct edge;
+template <typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> struct vertex;
 namespace __details__::graph {
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct graph_base;
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra;
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd;
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct graph_base;
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra;
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct floyd;
 }
 template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
 template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
+template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct undirected_graph;
+template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct undirected_multigraph;
 
 namespace __details__::graph {
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct alloc;
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> struct alloc: public _Alloc {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct alloc;
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct alloc: public _Alloc {
 public:
-    using vertex_type = vertex<_Vk, _Multi, _Vv, _Ev, _Hash>;
-    using edge_type = edge<_Ev, _Vk, _Multi, _Vv, _Hash>;
+    using vertex_type = vertex<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash>;
+    using edge_type = edge<_Ev, _Gd, _Vk, _Gt, _Vv, _Hash>;
     using allocator_type = _Alloc;
     using alloc_traits = std::allocator_traits<allocator_type>;
     using vertex_allocator_type = typename alloc_traits::template rebind_alloc<vertex_type>;
@@ -112,13 +116,14 @@ public:
 };
 }
 
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> struct vertex<_Vk, true, _Vv, _Ev, _Hash> : public __details__::graph::storage<_Vv> {
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash>
+struct vertex<_Vk, __details__::graph::MULTI, _Vv, _Ev, _Gd, _Hash> : public __details__::graph::storage<_Vv> {
 public:
     using base = __details__::graph::storage<_Vv>;
     using key_type = _Vk;
     using value_type = typename base::value_type;
-    using vertex_type = vertex<_Vk, true, _Vv, _Ev, _Hash>;
-    using edge_type = edge<_Ev, _Vk, true, _Vv, _Hash>;
+    using vertex_type = vertex<_Vk, __details__::graph::MULTI, _Vv, _Ev, _Gd, _Hash>;
+    using edge_type = edge<_Ev, _Gd, _Vk, __details__::graph::MULTI, _Vv, _Hash>;
     using iterator = typename std::unordered_multimap<key_type, edge_type*>::iterator;
     using const_iterator = typename std::unordered_multimap<key_type, edge_type*>::const_iterator;
 public:
@@ -128,9 +133,10 @@ public:
     auto operator=(const vertex_type&) -> vertex_type& = delete;
     auto operator=(vertex_type&&) -> vertex_type& = delete;
     virtual ~vertex() = default;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct __details__::graph::graph_base;
-    template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph;
+    template <typename __Vk, __details__::graph::type __Gt, typename __Vv, typename __Ev, __details__::graph::direction __Gd, typename __Hash, typename __Alloc>
+    friend struct __details__::graph::graph_base;
     template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct multigraph;
+    template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct undirected_multigraph;
 public:
     auto operator==(const vertex_type& _rhs) const -> bool { return base::operator==(_rhs); }
     auto operator!=(const vertex_type& _rhs) const -> bool { return base::operator!=(_rhs); }
@@ -191,13 +197,14 @@ private:
     std::unordered_multimap<key_type, edge_type*, _Hash> _in;
     std::unordered_multimap<key_type, edge_type*, _Hash> _out;
 };
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> struct vertex<_Vk, false, _Vv, _Ev, _Hash> : public __details__::graph::storage<_Vv> {
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash>
+struct vertex<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, _Gd, _Hash> : public __details__::graph::storage<_Vv> {
 public:
     using base = __details__::graph::storage<_Vv>;
     using key_type = _Vk;
     using value_type = typename base::value_type;
-    using vertex_type = vertex<_Vk, false, _Vv, _Ev, _Hash>;
-    using edge_type = edge<_Ev, _Vk, false, _Vv, _Hash>;
+    using vertex_type = vertex<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, _Gd, _Hash>;
+    using edge_type = edge<_Ev, _Gd, _Vk, __details__::graph::SIMPLE, _Vv, _Hash>;
     using iterator = typename std::unordered_map<key_type, edge_type*>::iterator;
     using const_iterator = typename std::unordered_map<key_type, edge_type*>::const_iterator;
 public:
@@ -207,9 +214,10 @@ public:
     auto operator=(const vertex_type&) -> vertex_type& = delete;
     auto operator=(vertex_type&&) -> vertex_type& = delete;
     virtual ~vertex() = default;
-    template <typename __Vk, bool _Multi, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct __details__::graph::graph_base;
-    template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct graph;
-    template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename _Alloc> friend struct multigraph;
+    template <typename __Vk, __details__::graph::type __Gt, typename __Vv, typename __Ev, __details__::graph::direction __Gd, typename __Hash, typename __Alloc>
+    friend struct __details__::graph::graph_base;
+    template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph;
+    template <typename __Vk, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct undirected_graph;
 public:
     auto operator==(const vertex_type& _rhs) const -> bool { return base::operator==(_rhs); }
     auto operator!=(const vertex_type& _rhs) const -> bool { return base::operator!=(_rhs); }
@@ -270,12 +278,13 @@ private:
     std::unordered_map<key_type, edge_type*, _Hash> _in;
     std::unordered_map<key_type, edge_type*, _Hash> _out;
 };
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> struct edge : public __details__::graph::storage<_Ev> {
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash>
+struct edge<_Ev, __details__::graph::DIRECTED, _Vk, _Gt, _Vv, _Hash> : public __details__::graph::storage<_Ev> {
 public:
     using base = __details__::graph::storage<_Ev>;
     using value_type = typename base::value_type;
-    using vertex_type = vertex<_Vk, _Multi, _Vv, _Ev, _Hash>;
-    using edge_type = edge<_Ev, _Vk, _Multi, _Vv, _Hash>;
+    using vertex_type = vertex<_Vk, _Gt, _Vv, _Ev, __details__::graph::DIRECTED, _Hash>;
+    using edge_type = edge<_Ev, __details__::graph::DIRECTED, _Vk, _Gt, _Vv, _Hash>;
     using key_type = typename vertex_type::key_type;
 public:
     template <typename... _Args> edge(const key_type&, vertex_type*, const key_type&, vertex_type*, _Args&&...);
@@ -296,55 +305,87 @@ private:
     const std::pair<key_type, vertex_type*> _in;
     const std::pair<key_type, vertex_type*> _out;
 };
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash>
+struct edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash> : public __details__::graph::storage<_Ev> {
+public:
+    using base = __details__::graph::storage<_Ev>;
+    using value_type = typename base::value_type;
+    using vertex_type = vertex<_Vk, _Gt, _Vv, _Ev, __details__::graph::UNDIRECTED, _Hash>;
+    using edge_type = edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>;
+    using key_type = typename vertex_type::key_type;
+public:
+    template <typename... _Args> edge(const key_type&, vertex_type*, const key_type&, vertex_type*, _Args&&...);
+    edge(const edge_type&) = delete;
+    edge(edge_type&&) = default;
+    auto operator=(const edge_type&) -> edge_type& = delete;
+    auto operator=(edge_type&&) -> edge_type& = delete;
+    virtual ~edge() = default;
+public:
+    auto operator==(const edge_type& _rhs) const -> bool { return base::operator==(_rhs); }
+    auto operator!=(const edge_type& _rhs) const -> bool { return base::operator!=(_rhs); }
+public:
+    // auto in() const -> const vertex_type& { return *_in.second; }
+    // auto out() const -> const vertex_type& { return *_out.second; }
+    // auto in_key() const -> const key_type& { return _in.first; }
+    // auto out_key() const -> const key_type& { return _out.first; }
+private:
+    const std::pair<key_type, vertex_type*> _in;
+    const std::pair<key_type, vertex_type*> _out;
+};
 
 // vertex<true> public implement
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> template <typename... _Args>
-vertex<_Vk, true, _Vv, _Ev, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> template <typename... _Args>
+vertex<_Vk, __details__::graph::MULTI, _Vv, _Ev, _Gd, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
 // vertex<true> private implement
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::insert_from(const key_type& _k, edge_type* const _e) -> size_t {
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> auto
+vertex<_Vk, __details__::graph::MULTI, _Vv, _Ev, _Gd, _Hash>::insert_from(const key_type& _k, edge_type* const _e) -> size_t {
     _in.insert({_k, _e});
     return _in.count(_k);
 }
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, true, _Vv, _Ev, _Hash>::insert_to(const key_type& _k, edge_type* const _e) -> size_t {
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> auto
+vertex<_Vk, __details__::graph::MULTI, _Vv, _Ev, _Gd, _Hash>::insert_to(const key_type& _k, edge_type* const _e) -> size_t {
     _out.insert({_k, _e});
     return _out.count(_k);
 }
 
 // vertex<false> public implement
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> template <typename... _Args>
-vertex<_Vk, false, _Vv, _Ev, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> template <typename... _Args>
+vertex<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, _Gd, _Hash>::vertex(_Args&&... _args) : base(std::forward<_Args>(_args)...) {}
 // vertex<false> private implement
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::insert_from(const key_type& _k, edge_type* const _e) -> size_t {
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> auto
+vertex<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, _Gd, _Hash>::insert_from(const key_type& _k, edge_type* const _e) -> size_t {
     _in[_k] = _e;
     return _in.count(_k);
 }
-template <typename _Vk, typename _Vv, typename _Ev, typename _Hash> auto
-vertex<_Vk, false, _Vv, _Ev, _Hash>::insert_to(const key_type& _k, edge_type* const _e) -> size_t {
+template <typename _Vk, typename _Vv, typename _Ev, __details__::graph::direction _Gd, typename _Hash> auto
+vertex<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, _Gd, _Hash>::insert_to(const key_type& _k, edge_type* const _e) -> size_t {
     _out[_k] = _e;
     return _out.count(_k);
 }
 
-template <typename _Ev, typename _Vk, bool _Multi, typename _Vv, typename _Hash> template <typename... _Args> edge<_Ev, _Vk, _Multi, _Vv, _Hash>::
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash>
+template <typename... _Args> edge<_Ev, __details__::graph::DIRECTED, _Vk, _Gt, _Vv, _Hash>::
+edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
+base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash>
+template <typename... _Args> edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::
 edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
 base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
 
 
 namespace __details__::graph {
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
-struct graph_base : public alloc<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc> {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc>
+struct graph_base : public alloc<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc> {
 public:
-    using vertex_type = vertex<_Vk, _Multi, _Vv, _Ev, _Hash>;
-    using edge_type = edge<_Ev, _Vk, _Multi, _Vv, _Hash>;
+    using vertex_type = vertex<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash>;
+    using edge_type = edge<_Ev, _Gd, _Vk, _Gt, _Vv, _Hash>;
     using key_type = typename vertex_type::key_type;
     template <typename _R> using vertex_visitor = std::function<_R(const key_type&, const vertex_type&)>;
     template <typename _R> using edge_visitor = std::function<_R(const edge_type&)>;
     template <typename _R> using vertex_modifier = std::function<_R(const key_type&, vertex_type&)>;
     template <typename _R> using edge_modifier = std::function<_R(edge_type&)>;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct dijkstra;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Cost, typename __Hash, typename __Alloc> friend struct floyd;
+    template <typename __Vk, type __Gt, typename __Vv, typename __Ev, direction __Gd, typename __Cost, typename __Hash, typename __Alloc> friend struct dijkstra;
+    template <typename __Vk, type __Gt, typename __Vv, typename __Ev, direction __Gd, typename __Cost, typename __Hash, typename __Alloc> friend struct floyd;
 protected:
     graph_base() = default;
     graph_base(const graph_base&) {} // implement in derived class
@@ -467,7 +508,7 @@ public: // algorithm
      * @throw out_of_range if the key not exists
      * @note can't handle negative weight edge
      */
-    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& visitor) const -> graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
+    template <typename _R> auto dijkstra(const key_type& _k, edge_visitor<_R>&& visitor) const -> graph::dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>;
     /**
      * @brief floyd algorithm
      * @tparam _R cost type
@@ -475,7 +516,7 @@ public: // algorithm
      * @return floyd result wrapper
      * @note can't handle negative weight loop
      */
-    template <typename _R> auto floyd(edge_visitor<_R>&& visitor) const -> graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>;
+    template <typename _R> auto floyd(edge_visitor<_R>&& visitor) const -> graph::floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>;
     auto bfs(const key_type& _k, vertex_modifier<void>&& modifier) -> size_t;
     auto bfs(const key_type& _k, vertex_visitor<void>&& visitor) const -> size_t;
     auto dfs(const key_type& _k, vertex_modifier<void>&& modifier) -> size_t;
@@ -492,15 +533,15 @@ protected:
 /**
  * @brief dijkstra result wrapper
  */
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra {
 public:
-    using base = graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>;
+    using base = graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
     using key_type = typename base::key_type;
     using cost_type = _Cost;
     using trailer = std::function<void(const key_type&)>;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph_base;
+    template <typename __Vk, type __Gt, typename __Vv, typename __Ev, direction __Gd, typename __Hash, typename __Alloc> friend struct graph_base;
 private:
     dijkstra(const base&, const key_type& _k, typename base::template edge_visitor<cost_type>&&);
 public:
@@ -537,15 +578,15 @@ private:
 /**
  * @brief floyd result wrapper
  */
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> struct floyd {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct floyd {
 public:
-    using base = graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>;
+    using base = graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
     using key_type = typename base::key_type;
     using cost_type = _Cost;
     using trailer = std::function<void(const key_type&)>;
-    template <typename __Vk, bool __Multi, typename __Vv, typename __Ev, typename __Hash, typename __Alloc> friend struct graph_base;
+    template <typename __Vk, type __Gt, typename __Vv, typename __Ev, direction __Gd, typename __Hash, typename __Alloc> friend struct graph_base;
 private:
     floyd(const base&, typename base::template edge_visitor<cost_type>&&);
 public:
@@ -583,21 +624,21 @@ private:
 };
 
 /// algorithm implement
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& visitor) const -> graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc> {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename _R> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& visitor) const -> graph::dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc> {
     static_assert(std::is_arithmetic<_R>::value);
     if (!this->contains(_k)) {
         throw std::out_of_range("graph_base::dijkstra");
     }
-    return graph::dijkstra<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, _k, std::move(visitor));
+    return graph::dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>(*this, _k, std::move(visitor));
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> template <typename _R> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::floyd(edge_visitor<_R>&& visitor) const -> graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc> {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename _R> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::floyd(edge_visitor<_R>&& visitor) const -> graph::floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc> {
     static_assert(std::is_arithmetic<_R>::value);
-    return graph::floyd<_Vk, _Multi, _Vv, _Ev, _R, _Hash, _Alloc>(*this, std::move(visitor));
+    return graph::floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>(*this, std::move(visitor));
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
     if (!contains(_key)) { return 0; }
     std::queue<key_type> _q;
     std::unordered_set<key_type> _s; // record vertex whether in queue before
@@ -617,8 +658,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _key, vert
     }
     return _cnt;
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _key, vertex_visitor<void>&& visitor) const -> size_t {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_visitor<void>&& visitor) const -> size_t {
     if (!contains(_key)) { return 0; }
     std::queue<key_type> _q;
     std::unordered_set<key_type> _s; // record vertex whether in queue before
@@ -638,8 +679,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::bfs(const key_type& _key, vert
     }
     return _cnt;
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<key_type> _preorder;
     std::unordered_set<key_type> _s; // record vertex whether visited
@@ -659,8 +700,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vert
     }
     return _cnt;
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& modifier, vertex_modifier<void>&& backtracer) -> size_t {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& modifier, vertex_modifier<void>&& backtracer) -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<std::vector<key_type>> _trail;
     std::unordered_set<key_type> _preorder;
@@ -692,8 +733,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vert
     }
     return _cnt;
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& visitor) const -> size_t {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& visitor) const -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<key_type> _preorder;
     std::unordered_set<key_type> _s; // record vertex whether visited
@@ -713,8 +754,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vert
     }
     return _cnt;
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& visitor, vertex_visitor<void>&& backtracer) const -> size_t {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+graph_base<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& visitor, vertex_visitor<void>&& backtracer) const -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<std::vector<key_type>> _trail;
     std::unordered_set<key_type> _preorder;
@@ -747,8 +788,8 @@ graph_base<_Vk, _Multi, _Vv, _Ev, _Hash, _Alloc>::dfs(const key_type& _key, vert
     return _cnt;
 }
 
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
-dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
+dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
 dijkstra(const base& _g, const key_type& _k, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g), _k(_k) {
     if (!_g.contains(_k)) { return; }
     // _s = {_k}, _u = all - {_k}
@@ -802,8 +843,8 @@ dijkstra(const base& _g, const key_type& _k, typename base::template edge_visito
         }
     }
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
-dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, trailer&& _trailer) const -> void {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::trail(const key_type& _x, trailer&& _trailer) const -> void {
     if (!_g.contains(_x)) {
         throw std::out_of_range("dijkstra::trail(...)");
     }
@@ -818,8 +859,8 @@ dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x,
     };
     _M_dijkstra_trail(_x);
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
-dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x) const -> cost_type {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x) const -> cost_type {
     if (!_g.contains(_x)) {
         throw std::out_of_range("dijkstra::cost(...)");
     }
@@ -829,8 +870,8 @@ dijkstra<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x) 
     }
     return std::numeric_limits<cost_type>::max();
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc>
-floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
+floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
 floyd(const base& _g, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g) {
     icy::graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : _g.vertices()) {
@@ -873,8 +914,8 @@ floyd(const base& _g, typename base::template edge_visitor<cost_type>&& visitor)
         }
     }
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
-floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
     if (!_g.contains(_x) || !_g.contains(_y)) {
         throw std::out_of_range("floyd::trail(...)");
     }
@@ -896,8 +937,8 @@ floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::trail(const key_type& _x, co
     };
     _M_floyd_trail(_x, _y, std::move(_trailer));
 }
-template <typename _Vk, bool _Multi, typename _Vv, typename _Ev, typename _Cost, typename _Hash, typename _Alloc> auto
-floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x, const key_type& _y) const -> cost_type {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x, const key_type& _y) const -> cost_type {
     if (!_g.contains(_x) || !_g.contains(_y)) {
         throw std::out_of_range("floyd::cost(...)");
     }
@@ -917,9 +958,9 @@ floyd<_Vk, _Multi, _Vv, _Ev, _Cost, _Hash, _Alloc>::cost(const key_type& _x, con
  * @tparam _Ev edge value (`void` by default)
  */
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
-struct graph : public __details__::graph::graph_base<_Vk, false, _Vv, _Ev, _Hash, _Alloc> {
+struct graph : public __details__::graph::graph_base<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, __details__::graph::DIRECTED, _Hash, _Alloc> {
 public:
-    using base = __details__::graph::graph_base<_Vk, false, _Vv, _Ev, _Hash, _Alloc>;
+    using base = __details__::graph::graph_base<_Vk, __details__::graph::SIMPLE, _Vv, _Ev, __details__::graph::DIRECTED, _Hash, _Alloc>;
     using key_type = typename base::key_type;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
@@ -976,9 +1017,9 @@ private:
  * @tparam _Ev edge value (`void` by default)
  */
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
-struct multigraph : public __details__::graph::graph_base<_Vk, true, _Vv, _Ev, _Hash, _Alloc> {
+struct multigraph : public __details__::graph::graph_base<_Vk, __details__::graph::MULTI, _Vv, _Ev, __details__::graph::DIRECTED, _Hash, _Alloc> {
 public:
-    using base = __details__::graph::graph_base<_Vk, true, _Vv, _Ev, _Hash, _Alloc>;
+    using base = __details__::graph::graph_base<_Vk, __details__::graph::MULTI, _Vv, _Ev, __details__::graph::DIRECTED, _Hash, _Alloc>;
     using key_type = typename base::key_type;
     using vertex_type = typename base::vertex_type;
     using edge_type = typename base::edge_type;
