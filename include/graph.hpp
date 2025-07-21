@@ -508,6 +508,7 @@ public: // algorithm
     auto dfs(const key_type& _k, vertex_visitor<void>&& visitor, vertex_visitor<void>&& backtracer) const -> size_t;
 protected:
     template <typename _G, typename _H> static auto assign(const _G&, _H&) -> void;
+    template <typename _G> static auto equal(const _G&, const _G&, std::function<bool(const key_type&, const key_type&, const edge_type&)>&&) -> bool;
     virtual auto for_each(const key_type& _x, const key_type& _y, edge_modifier<void>&& modifier) -> void = 0;
     virtual auto for_each(const key_type& _x, const key_type& _y, edge_visitor<void>&& visitor) const -> void = 0;
 protected:
@@ -920,6 +921,26 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::assign(const _G& _src, _H& _this)
         }
     }
 }
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename _G> auto
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::equal(const _G& _lhs, const _G& _rhs, std::function<bool(const key_type&, const key_type&, const edge_type&)>&& exist) -> bool {
+    if (_lhs.order() != _rhs.order() || _lhs.size() != _rhs.size()) { return false; }
+    std::queue<key_type> _remains;
+    for (const auto& [_k, _v] : _rhs.vertices()) {
+        if (!_lhs.contains(_k)) { return false; }
+        const vertex_type& _lv = *_lhs.get_vertex(_k);
+        const vertex_type& _rv = *_rhs.get_vertex(_k);
+        if (_lv != _rv || _lv.indegree() != _rv.indegree() || _lv.outdegree() != _rv.outdegree()) { return false; }
+        _remains.push(_k);
+    }
+    while (!_remains.empty()) {
+        const key_type& _k = _remains.front(); _remains.pop();
+        const auto _outs = _rhs.get_vertex(_k)->out();
+        for (auto _i = _outs.first; _i != _outs.second; ++_i) { // _i -> <key_type, edge_type*>
+            if (!exist(_k, _i->first, *_i->second)) { return false; }
+        }
+    }
+    return true;
+}
 
 template <typename _Vk, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
 graph_basis<_Vk, _Vv, _Ev, _Gd, _Hash, _Alloc>::get_edge(const key_type& _x, const key_type& _y) -> edge_type* {
@@ -1321,8 +1342,11 @@ undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const undirected_graph
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const undirected_graph& _rhs) const -> bool { // todo
-    return true;
+undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const undirected_graph& _rhs) const -> bool {
+    return equal<undirected_graph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+        const edge_type* _ptr = this->get_edge(_x, _y);
+        return _ptr != nullptr && *_ptr == _e;
+    });
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const undirected_graph& _rhs) const -> bool {
@@ -1362,8 +1386,13 @@ undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const undirected_
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
-undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const undirected_multigraph& _rhs) const -> bool { // todo
-    return true;
+undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const undirected_multigraph& _rhs) const -> bool {
+    return equal<undirected_multigraph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+        const auto _edges = this->get_edge(_x, _y);
+        return std::any_of(_edges.first, _edges.second, [&_e](const auto& _iter) -> bool {
+            return _e == *_iter.second;
+        });
+    });
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const undirected_multigraph& _rhs) const -> bool {
@@ -1404,32 +1433,10 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const graph& _rhs) -> graph& {
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const graph& _rhs) const -> bool {
-    if (this->order() != _rhs.order() || this->size() != _rhs.size()) {
-        return false;
-    }
-    std::queue<key_type> _remains;
-    for (const auto& [_k, _v] : _rhs._vertices) {
-        if (!this->contains(_k)) {
-            return false;
-        }
-        const vertex_type* _vertex = this->get_vertex(_k);
-        const vertex_type* _rhs_vertex = _rhs.get_vertex(_k);
-        if (*_vertex != *_rhs_vertex || _vertex->indegree() != _rhs_vertex->indegree() || _vertex->outdegree() != _rhs_vertex->outdegree()) {
-            return false;
-        }
-        _remains.push(_k);
-    }
-    while (!_remains.empty()) {
-        const key_type& _k = _remains.front(); _remains.pop();
-        const auto _outs = _rhs.get_vertex(_k)->out();
-        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            const edge_type* _e = this->get_edge(_k, _out->first);
-            if (_e == nullptr || *_e != *_out->second) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return equal<graph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+        const edge_type* _ptr = this->get_edge(_x, _y);
+        return _ptr != nullptr && *_ptr == _e;
+    });
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const graph& _rhs) const -> bool {
@@ -1477,34 +1484,12 @@ multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const multigraph& _rhs) -> m
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const multigraph& _rhs) const -> bool {
-    if (this->order() != _rhs.order() || this->size() != _rhs.size()) {
-        return false;
-    }
-    std::queue<key_type> _remains;
-    for (const auto& [_k, _v] : _rhs._vertices) {
-        if (!this->contains(_k)) {
-            return false;
-        }
-        const vertex_type* _vertex = this->get_vertex(_k);
-        const vertex_type* _rhs_vertex = _rhs.get_vertex(_k);
-        if (*_vertex != *_rhs_vertex || _vertex->indegree() != _rhs_vertex->indegree() || _vertex->outdegree() != _rhs_vertex->outdegree()) {
-            return false;
-        }
-        _remains.push(_k);
-    }
-    while (!_remains.empty()) {
-        const key_type& _k = _remains.front(); _remains.pop();
-        const auto _outs = _rhs.get_vertex(_k)->out();
-        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            const auto _edges = this->get_edge(_k, _out->first);
-            if (std::none_of(_edges.first, _edges.second, [_out](const auto& _iter) {
-                return *_out->second == *_iter.second;
-            })) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return equal<multigraph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+        const auto _edges = this->get_edge(_x, _y);
+        return std::any_of(_edges.first, _edges.second, [&_e](const auto& _iter) -> bool {
+            return _e == *_iter.second;
+        });
+    });
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator!=(const multigraph& _rhs) const -> bool {
