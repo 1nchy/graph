@@ -3,8 +3,6 @@
 #include "test.hpp"
 #include "graph.hpp"
 
-#include <map>
-
 enum land_type {
     RESIDENTIAL, // 居住用地
     PUBLIC, // 公共服务用地
@@ -132,18 +130,25 @@ ICY_CASE("Shenyang") {
     ///
     EXPECT_EQ(_metro.order(), 38);
     EXPECT_EQ(_metro.size(), 43);
-    ICY_SUBCASE("from Shenyang Railway Station to each SCHOOL") {
-        const auto _dijk = _metro.dijkstra<cost_type>("Shenyang Railway Station", [](const edge_type& _e) -> cost_type {
+    ICY_SUBCASE("epidemic") {
+        // epidemic in Taiyuan Street
+        const key_type _source = "Taiyuan Street";
+        const cost_type _release = 10;
+        const auto _dijk = _metro.dijkstra<cost_type>(_source, [](const edge_type& _e) -> cost_type {
             return _e.value();
         });
-        std::map<key_type, cost_type> _school;
-        for (const auto& [_k, _v] : _metro.vertices()) {
-            if (_v->value() == SCHOOL) {
-                _school[_k] = _dijk.cost(_k);
-            }
+        std::vector<key_type> _lockdown;
+        _metro.bfs(_source, [&_lockdown, &_dijk, _release](const key_type& _k, const vertex_type& _v) -> void {
+            if (_dijk.cost(_k) < _release) { _lockdown.emplace_back(_k); }
+        });
+        EXPECT_EQ(_lockdown.size(), 9);
+        // EXPECT_EQ(test::to_string(_lockdown), "");
+        for (const auto& _k : _lockdown) {
+            vertex_type* const _v = _metro.get_vertex(_k);
+            EXPECT_EQ(_v->indegree(), _v->outdegree());
+            _metro.disconnect(_k);
         }
-        EXPECT_EQ(_school.size(), 6);
-        // EXPECT_EQ(test::to_string(_school), "");
+        EXPECT_EQ(_metro.size(), 26);
     }
     ICY_SUBCASE("from RESIDENTIAL to GREEN") {
         const auto _floyd = _metro.floyd<cost_type>([](const edge_type& _e) -> cost_type {
@@ -155,7 +160,7 @@ ICY_CASE("Shenyang") {
                 _green.emplace_back(_k);
             }
         }
-        std::map<key_type, cost_type> _residential;
+        std::unordered_map<key_type, cost_type> _residential;
         for (const auto& [_k, _v] : _metro.vertices()) {
             if (_v->value() == RESIDENTIAL) {
                 _residential[_k] = std::numeric_limits<cost_type>::max();
@@ -165,6 +170,11 @@ ICY_CASE("Shenyang") {
             }
         }
         EXPECT_EQ(_residential.size(), 7);
+        const auto _minmax = std::minmax_element(_residential.cbegin(), _residential.cend(), [](const auto& _x, const auto& _y) -> bool {
+            return _x.second < _y.second;
+        });
+        EXPECT_EQ(_minmax.first->first, "Nova 1st Road");
+        EXPECT_EQ(_minmax.second->first, "Zhengxin Road");
         // EXPECT_EQ(test::to_string(_residential), "");
     }
 }

@@ -794,7 +794,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_
     _s.insert(_key);
     size_t _cnt = 0;
     while (!_q.empty()) {
-        const key_type& _k = _q.front(); _q.pop();
+        const key_type _k = _q.front(); _q.pop();
         vertex_type* const _v = get_vertex(_k);
         modifier(_k, *_v); ++_cnt;
         const auto _outs = _v->out();
@@ -815,7 +815,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_
     _s.insert(_key);
     size_t _cnt = 0;
     while (!_q.empty()) {
-        const key_type& _k = _q.front(); _q.pop();
+        const key_type _k = _q.front(); _q.pop();
         const vertex_type* const _v = get_vertex(_k);
         visitor(_k, *_v); ++_cnt;
         const auto _outs = _v->out();
@@ -835,7 +835,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
     _preorder.push_back(_key);
     size_t _cnt = 0;
     while (!_preorder.empty()) {
-        const key_type& _k = _preorder.back(); _preorder.pop_back();
+        const key_type _k = _preorder.back(); _preorder.pop_back();
         if (_s.contains(_k)) { continue; }
         vertex_type* const _v = get_vertex(_k);
         modifier(_k, *_v); ++_cnt;
@@ -858,7 +858,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
     size_t _cnt = 0;
     while (!_trail.empty()) {
         while (!_trail.back().empty()) {
-            const key_type& _k = _trail.back().back();
+            const key_type _k = _trail.back().back();
             if (_preorder.contains(_k)) { _trail.back().pop_back(); break; }
             vertex_type* const _v = get_vertex(_k);
             modifier(_k, *_v); ++_cnt; _preorder.insert(_k);
@@ -873,7 +873,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
         while (_trail.back().empty()) {
             _trail.pop_back();
             if (_trail.empty()) { break; }
-            const key_type& _k = _trail.back().back(); _trail.back().pop_back();
+            const key_type _k = _trail.back().back(); _trail.back().pop_back();
             if (_postorder.contains(_k)) { continue; }
             vertex_type* const _v = get_vertex(_k);
             backtracer(_k, *_v); _postorder.insert(_k);
@@ -889,7 +889,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
     _preorder.push_back(_key);
     size_t _cnt = 0;
     while (!_preorder.empty()) {
-        const key_type& _k = _preorder.back(); _preorder.pop_back();
+        const key_type _k = _preorder.back(); _preorder.pop_back();
         if (_s.contains(_k)) { continue; }
         const vertex_type* const _v = get_vertex(_k);
         visitor(_k, *_v); ++_cnt;
@@ -912,7 +912,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
     size_t _cnt = 0;
     while (!_trail.empty()) {
         while (!_trail.back().empty()) {
-            const key_type& _k = _trail.back().back();
+            const key_type _k = _trail.back().back();
             if (_preorder.contains(_k)) { _trail.back().pop_back(); break; }
             const vertex_type* const _v = get_vertex(_k);
             visitor(_k, *_v); ++_cnt; _preorder.insert(_k);
@@ -927,7 +927,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
         while (_trail.back().empty()) {
             _trail.pop_back();
             if (_trail.empty()) { break; }
-            const key_type& _k = _trail.back().back(); _trail.back().pop_back();
+            const key_type _k = _trail.back().back(); _trail.back().pop_back();
             if (_postorder.contains(_k)) { continue; }
             const vertex_type* const _v = get_vertex(_k);
             backtracer(_k, *_v); _postorder.insert(_k);
@@ -945,7 +945,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::assign(const _G& _src, _H& _this)
         _remains.push(_k);
     }
     while (!_remains.empty()) {
-        const key_type& _k = _remains.front(); _remains.pop();
+        const key_type _k = _remains.front(); _remains.pop();
         if (!_this.contains(_k)) {
             _this.insert(_k, static_cast<const typename vertex_type::base&>(*_src.get_vertex(_k)));
         }
@@ -970,7 +970,7 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::equal(const _G& _lhs, const _G& _
         _remains.push(_k);
     }
     while (!_remains.empty()) {
-        const key_type& _k = _remains.front(); _remains.pop();
+        const key_type _k = _remains.front(); _remains.pop();
         const auto _outs = _rhs.get_vertex(_k)->out();
         for (auto _i = _outs.first; _i != _outs.second; ++_i) { // _i -> <key_type, edge_type*>
             if (!exist(_k, _i->first, *_i->second)) { return false; }
