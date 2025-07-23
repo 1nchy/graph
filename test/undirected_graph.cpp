@@ -14,11 +14,12 @@ enum land_type {
 };
 
 ICY_CASE("Shenyang") {
-    icy::undirected_graph<std::string, land_type, unsigned> _metro;
+    icy::undirected_graph<std::string, land_type, std::pair<unsigned, unsigned>> _metro;
     using key_type = typename decltype(_metro)::key_type;
     using vertex_type = typename decltype(_metro)::vertex_type;
     using edge_type = typename decltype(_metro)::edge_type;
     using cost_type = unsigned;
+    /// line 1
     _metro.insert("Yinbin Road", RESIDENTIAL);
     _metro.insert("Tiexi Square", PUBLIC);
     _metro.insert("Shenyang Railway Station", TRANSPORTATION);
@@ -27,13 +28,13 @@ ICY_CASE("Shenyang") {
     _metro.insert("Midst Street", COMMERCIAL);
     _metro.insert("Pangjiang Street", COMMERCIAL);
     _metro.insert("Dawn Square", PUBLIC);
-    _metro.connect("Yinbin Road", "Tiexi Square", 9);
-    _metro.connect("Tiexi Square", "Shenyang Railway Station", 5);
-    _metro.connect("Shenyang Railway Station", "Taiyuan Street", 3);
-    _metro.connect("Taiyuan Street", "Teenager Street", 4);
-    _metro.connect("Teenager Street", "Midst Street", 5);
-    _metro.connect("Midst Street", "Pangjiang Street", 5);
-    _metro.connect("Pangjiang Street", "Dawn Square", 2);
+    _metro.connect("Yinbin Road", "Tiexi Square", 1, 9);
+    _metro.connect("Tiexi Square", "Shenyang Railway Station", 1, 5);
+    _metro.connect("Shenyang Railway Station", "Taiyuan Street", 1, 3);
+    _metro.connect("Taiyuan Street", "Teenager Street", 1, 4);
+    _metro.connect("Teenager Street", "Midst Street", 1, 5);
+    _metro.connect("Midst Street", "Pangjiang Street", 1, 5);
+    _metro.connect("Pangjiang Street", "Dawn Square", 1, 2);
     /// line 2
     _metro.insert("Liaoning University", SCHOOL);
     _metro.insert("TCM University", SCHOOL); // Traditional Chinese Medicine
@@ -47,24 +48,24 @@ ICY_CASE("Shenyang") {
     _metro.insert("Central Park", GREEN);
     _metro.insert("Nova 1st Road", RESIDENTIAL);
     _metro.insert("Taoxian Airport", TRANSPORTATION);
-    _metro.connect("Liaoning University", "TCM University", 22);
-    _metro.connect("TCM University", "Shenyangbei Railway Station", 4);
-    _metro.connect("Shenyangbei Railway Station", "People's Square", 4);
-    _metro.connect("People's Square", "Teenager Street", 3);
-    _metro.connect("Teenager Street", "Industry Museum", 4);
-    _metro.connect("Industry Museum", "City Library", 3);
-    _metro.connect("City Library", "Olympic Center", 4);
-    _metro.connect("Olympic Center", "Province Museum", 7);
-    _metro.connect("Province Museum", "Central Park", 3);
-    _metro.connect("Central Park", "Nova 1st Road", 3);
-    _metro.connect("Nova 1st Road", "Taoxian Airport", 7);
+    _metro.connect("Liaoning University", "TCM University", 2, 22);
+    _metro.connect("TCM University", "Shenyangbei Railway Station", 2, 4);
+    _metro.connect("Shenyangbei Railway Station", "People's Square", 2, 4);
+    _metro.connect("People's Square", "Teenager Street", 2, 3);
+    _metro.connect("Teenager Street", "Industry Museum", 2, 4);
+    _metro.connect("Industry Museum", "City Library", 2, 3);
+    _metro.connect("City Library", "Olympic Center", 2, 4);
+    _metro.connect("Olympic Center", "Province Museum", 2, 7);
+    _metro.connect("Province Museum", "Central Park", 2, 3);
+    _metro.connect("Central Park", "Nova 1st Road", 2, 3);
+    _metro.connect("Nova 1st Road", "Taoxian Airport", 2, 7);
     /// line 3
     _metro.insert("Industry University", SCHOOL);
     _metro.insert("Datonghu Street", COMMERCIAL);
     _metro.insert("Shayang", RESIDENTIAL);
     _metro.insert("Industry Museum", INDUSTRIAL);
     _metro.insert("Jiangdong Street", COMMERCIAL);
-    _metro.connect("Industry University", "Datonghu Street", 16);
+    _metro.connect("Industry University", "Datonghu Street", 3, 16);
     /// line 4
     _metro.insert("Zhengxin Road", RESIDENTIAL);
     _metro.insert("Hezuo Street", COMMERCIAL);
@@ -74,13 +75,13 @@ ICY_CASE("Shenyang") {
     _metro.insert("Shayang", RESIDENTIAL);
     _metro.insert("Changbainan", RESIDENTIAL);
     _metro.insert("Shenyangnan Railway Station", TRANSPORTATION);
-    _metro.connect("Zhengxin Road", "Hezuo Street", 12);
-    _metro.connect("Hezuo Street", "Shenyang University", 4);
-    _metro.connect("Shenyang University", "Shenyangbei Railway Station", 4);
-    _metro.connect("Shenyangbei Railway Station", "Taiyuan Street", 8);
-    _metro.connect("Taiyuan Street", "Shayang", 5);
-    _metro.connect("Shayang", "Changbainan", 8);
-    _metro.connect("Changbainan", "Shenyangnan Railway Station", 13);
+    _metro.connect("Zhengxin Road", "Hezuo Street", 4, 12);
+    _metro.connect("Hezuo Street", "Shenyang University", 4, 4);
+    _metro.connect("Shenyang University", "Shenyangbei Railway Station", 4, 4);
+    _metro.connect("Shenyangbei Railway Station", "Taiyuan Street", 4, 8);
+    _metro.connect("Taiyuan Street", "Shayang", 4, 5);
+    _metro.connect("Shayang", "Changbainan", 4, 8);
+    _metro.connect("Changbainan", "Shenyangnan Railway Station", 4, 13);
     /// line 6
     _metro.insert("Hero Park", GREEN);
     _metro.insert("Beita", RESIDENTIAL);
@@ -97,14 +98,14 @@ ICY_CASE("Shenyang") {
     _metro.insert("Olympic Center", PUBLIC);
     _metro.insert("Changqingnan Street", COMMERCIAL);
     _metro.insert("Building University", SCHOOL);
-    _metro.connect("Nujiang Park", "Shenyang 2nd Hospital", 2);
-    _metro.connect("Shenyang 2nd Hospital", "Tiexi Square", 9);
-    _metro.connect("Tiexi Square", "Xinghua Park", 2);
-    _metro.connect("Xinghua Park", "Datonghu Street", 10);
-    _metro.connect("Datonghu Street", "Changbainan", 11);
-    _metro.connect("Changbainan", "Olympic Center", 9);
-    _metro.connect("Olympic Center", "Changqingnan Street", 8);
-    _metro.connect("Changqingnan Street", "Building University", 2);
+    _metro.connect("Nujiang Park", "Shenyang 2nd Hospital", 9, 2);
+    _metro.connect("Shenyang 2nd Hospital", "Tiexi Square", 9, 9);
+    _metro.connect("Tiexi Square", "Xinghua Park", 9, 2);
+    _metro.connect("Xinghua Park", "Datonghu Street", 9, 10);
+    _metro.connect("Datonghu Street", "Changbainan", 9, 11);
+    _metro.connect("Changbainan", "Olympic Center", 9, 9);
+    _metro.connect("Olympic Center", "Changqingnan Street", 9, 8);
+    _metro.connect("Changqingnan Street", "Building University", 9, 2);
     /// line 10
     _metro.insert("Dingxiang Lake", GREEN);
     _metro.insert("Shenyang 2nd Hospital", PUBLIC);
@@ -118,15 +119,15 @@ ICY_CASE("Shenyang") {
     _metro.insert("Institute of Technology", SCHOOL);
     _metro.insert("Nova 1st Road", RESIDENTIAL);
     _metro.insert("Shenyangnan Railway Station", TRANSPORTATION);
-    _metro.connect("Dingxiang Lake", "Shenyang 2nd Hospital", 10);
-    _metro.connect("Shenyang 2nd Hospital", "TCM University", 6);
-    _metro.connect("TCM University", "Beita", 5);
-    _metro.connect("Beita", "Hezuo Street", 3);
-    _metro.connect("Hezuo Street", "Pangjiang Street", 5);
-    _metro.connect("Pangjiang Street", "Chang'an Road", 3);
-    _metro.connect("Chang'an Road", "Jiangdong Street", 7);
-    _metro.connect("Jiangdong Street", "Changqingnan Street", 3);
-    _metro.connect("Changqingnan Street", "Institute of Technology", 3);
+    _metro.connect("Dingxiang Lake", "Shenyang 2nd Hospital", 10, 10);
+    _metro.connect("Shenyang 2nd Hospital", "TCM University", 10, 6);
+    _metro.connect("TCM University", "Beita", 10, 5);
+    _metro.connect("Beita", "Hezuo Street", 10, 3);
+    _metro.connect("Hezuo Street", "Pangjiang Street", 10, 5);
+    _metro.connect("Pangjiang Street", "Chang'an Road", 10, 3);
+    _metro.connect("Chang'an Road", "Jiangdong Street", 10, 7);
+    _metro.connect("Jiangdong Street", "Changqingnan Street", 10, 3);
+    _metro.connect("Changqingnan Street", "Institute of Technology", 10, 3);
     ///
     EXPECT_EQ(_metro.order(), 38);
     EXPECT_EQ(_metro.size(), 43);
@@ -135,24 +136,48 @@ ICY_CASE("Shenyang") {
         const key_type _source = "Taiyuan Street";
         const cost_type _release = 10;
         const auto _dijk = _metro.dijkstra<cost_type>(_source, [](const edge_type& _e) -> cost_type {
-            return _e.value();
+            return _e.value().second;
         });
         std::vector<key_type> _lockdown;
-        _metro.bfs(_source, [&_lockdown, &_dijk, _release](const key_type& _k, const vertex_type& _v) -> void {
+        std::vector<key_type> _nostop;
+        _metro.bfs(_source, [&_lockdown, &_nostop, &_dijk, _release](const key_type& _k, const vertex_type& _v) -> void {
             if (_dijk.cost(_k) < _release) { _lockdown.emplace_back(_k); }
+            else if (_dijk.cost(_k) < _release * 2) { _nostop.emplace_back(_k); }
         });
         EXPECT_EQ(_lockdown.size(), 9);
-        // EXPECT_EQ(test::to_string(_lockdown), "");
+        EXPECT_EQ(_nostop.size(), 11);
         for (const auto& _k : _lockdown) {
-            vertex_type* const _v = _metro.get_vertex(_k);
-            EXPECT_EQ(_v->indegree(), _v->outdegree());
             _metro.disconnect(_k);
         }
         EXPECT_EQ(_metro.size(), 26);
+        for (const auto& _k : _nostop) {
+            vertex_type* const _v = _metro.get_vertex(_k);
+            EXPECT_EQ(_v->indegree(), _v->outdegree());
+            std::vector<key_type> _next; _next.reserve(_v->indegree());
+            const auto _outs = _v->out();
+            for (auto _o = _outs.first; _o != _outs.second; ++_o) {
+                _next.emplace_back(_o->first);
+            }
+            for (size_t _i = 0; _i != _next.size(); ++_i) {
+                for (size_t _j = _i + 1; _j != _next.size(); ++_j) {
+                    const key_type& _x = _next[_i];
+                    const key_type& _y = _next[_j];
+                    const edge_type* const _xe = _metro.get_edge(_k, _x);
+                    const edge_type* const _ye = _metro.get_edge(_k, _y);
+                    if (_xe == nullptr || _ye == nullptr) { continue; }
+                    if (_xe->value().first == _ye->value().first) {
+                        _metro.connect(_x, _y, _xe->value().first, _xe->value().second + _ye->value().second - 1);
+                        _metro.disconnect(_k, _x);
+                        _metro.disconnect(_k, _y);
+                    }
+                }
+            }
+        }
+        EXPECT_EQ(_metro.size(), 18);
     }
     ICY_SUBCASE("from RESIDENTIAL to GREEN") {
         const auto _floyd = _metro.floyd<cost_type>([](const edge_type& _e) -> cost_type {
-            return _e.value();
+            return _e.value().second;
         });
         std::vector<key_type> _green;
         for (const auto& [_k, _v] : _metro.vertices()) {
