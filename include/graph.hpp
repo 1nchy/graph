@@ -303,6 +303,8 @@ public:
     auto out() const -> const vertex_type& { return *_out.second; }
     auto in_key() const -> const key_type& { return _in.first; }
     auto out_key() const -> const key_type& { return _out.first; }
+    auto other(const key_type&) const -> const vertex_type&;
+    auto other_key(const key_type&) const -> const key_type&;
 private:
     const std::pair<key_type, vertex_type*> _in;
     const std::pair<key_type, vertex_type*> _out;
@@ -369,6 +371,18 @@ template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv
 template <typename... _Args> edge<_Ev, __details__::graph::DIRECTED, _Vk, _Gt, _Vv, _Hash>::
 edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
 base(std::forward<_Args>(_args)...), _in(_xk, _x), _out(_yk, _y) {}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
+edge<_Ev, __details__::graph::DIRECTED, _Vk, _Gt, _Vv, _Hash>::other(const key_type& _k) const -> const vertex_type& {
+    if (_k == _in.first) { return _out.second; }
+    if (_k == _out.first) { return _in.second; }
+    throw std::out_of_range("edge<DIRECTED>::other(...)");
+}
+template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
+edge<_Ev, __details__::graph::DIRECTED, _Vk, _Gt, _Vv, _Hash>::other_key(const key_type& _k) const -> const key_type& {
+    if (_k == _in.first) { return _out.first; }
+    if (_k == _out.first) { return _in.first; }
+    throw std::out_of_range("edge<DIRECTED>::other_key(...)");
+}
 template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash>
 template <typename... _Args> edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::
 edge(const key_type& _xk, vertex_type* _x, const key_type& _yk, vertex_type* _y, _Args&&... _args) : 
@@ -383,19 +397,36 @@ edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::either_key() co
 }
 template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
 edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::other(const key_type& _k) const -> const vertex_type& {
-    if (_k == _x.first) { return _x.second; }
-    if (_k == _y.first) { return _y.second; }
+    if (_k == _x.first) { return _y.second; }
+    if (_k == _y.first) { return _x.second; }
     throw std::out_of_range("edge<UNDIRECTED>::other(...)");
 }
 template <typename _Ev, typename _Vk, __details__::graph::type _Gt, typename _Vv, typename _Hash> auto
 edge<_Ev, __details__::graph::UNDIRECTED, _Vk, _Gt, _Vv, _Hash>::other_key(const key_type& _k) const -> const key_type& {
-    if (_k == _x.first) { return _x.first; }
-    if (_k == _y.first) { return _y.first; }
+    if (_k == _x.first) { return _y.first; }
+    if (_k == _y.first) { return _x.first; }
     throw std::out_of_range("edge<UNDIRECTED>::other_key(...)");
 }
 
 
 namespace __details__::graph {
+/**
+ * @implements
+ * `graph_basis` and `multigraph_basis` derived from `basis`
+ * `graph` and `undirected_graph` derived from `graph_basis`
+ * `multigraph` and `undirected_multigraph` derived from `multigraph_basis`
+ * @implements
+ * methods specific to directed or undirected graphs are implemented in different way,
+ * moreover, methods specific to simple or multi graph have different return type.
+ * so, methods specific to directed or undirected graphs are implemented in specialized template,
+ * and methods specific to simple or multi graph are implemented in derived class.
+ * @implements
+ * | diff \\ specific | undirected/directed | simple/multi |       all        |
+ * |:----------------:|:-------------------:|:------------:|:----------------:|
+ * |  implementation  |      disconnect     |   for_each   | (bi)connect<...> |
+ * |   +return type   |          \          |   get_edge   |                  |
+ * `basis::erase` depends on `disconnect`
+ */
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc>
 struct basis : public alloc<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc> {
 public:
@@ -706,7 +737,9 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::disconnect(const key_type& _k) ->
     for (auto _in = _ins.first; _in != _ins.second; ++_in) {
         get_vertex(_in->first)->erase_to(_k);
         _edges.erase(_in->second);
-        this->_M_deallocate_edge(_in->second);
+        if constexpr (_Gd == direction::DIRECTED) {
+            this->_M_deallocate_edge(_in->second);
+        }
     }
     const auto _outs = _vertex->out();
     for (auto _out = _outs.first; _out != _outs.second; ++_out) {
@@ -726,6 +759,10 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::disconnect(const key_type& _x, co
     });
     this->get_vertex(_x)->erase_to(_y);
     this->get_vertex(_y)->erase_from(_x);
+    if constexpr (_Gd == direction::UNDIRECTED) {
+        this->get_vertex(_x)->erase_from(_y);
+        this->get_vertex(_y)->erase_to(_x);
+    }
 }
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
 basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::clear() -> void {
@@ -1009,7 +1046,7 @@ dijkstra(const base& _g, const key_type& _k, typename base::template edge_visito
         cost_type _c = std::numeric_limits<cost_type>::max();
         _g.for_each(_k, _key, [this, &_c, &_k, &visitor](const edge_type& _e) {
             _c = std::min(_c, visitor(_e));
-            this->_predecessor[_e.out_key()] = std::make_pair(_c, _k);
+            this->_predecessor[_e.other_key(_k)] = std::make_pair(_c, _k);
         });
         _q.emplace(_c, _key);
     }
@@ -1092,12 +1129,15 @@ floyd(const base& _g, typename base::template edge_visitor<cost_type>&& visitor)
         if (!this->_intermediary.adjacent(_i, _j)) { this->_intermediary.connect(_i, _j, _cost, _k); }
         else { this->_intermediary.get_edge(_i, _j)->set_value(std::make_pair(_cost, _k)); }
     };
-    for (const edge_type* _e : _g.edges()) {
-        const key_type& _ik = _e->in_key();
-        const key_type& _ok = _e->out_key();
-        const cost_type _cost = visitor(*_e);
-        if (get_cost(_ik, _ok) > _cost) {
-            set_intermediary(_ik, _ok, _cost, _ik); //for graph and multigraph
+    for (const auto& [_i, _v] : _g.vertices()) {
+        const auto _outs = _v->out();
+        for (auto _o = _outs.first; _o != _outs.second; ++_o) {
+            const key_type& _ik = _i;
+            const key_type& _ok = _o->first;
+            const cost_type _cost = visitor(*_o->second);
+            if (get_cost(_ik, _ok) > _cost) {
+                set_intermediary(_ik, _ok, _cost, _ik); //for graph and multigraph
+            }
         }
     }
     for (const auto& [_k, _kv] : _g.vertices()) {
@@ -1332,18 +1372,18 @@ public:
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::undirected_graph(const undirected_graph& _rhs) {
-    assign<undirected_graph, undirected_graph>(_rhs, *this);
+    base::base::template assign<undirected_graph, undirected_graph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const undirected_graph& _rhs) -> undirected_graph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    assign<undirected_graph, undirected_graph>(_rhs, *this);
+    base::base::template assign<undirected_graph, undirected_graph>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const undirected_graph& _rhs) const -> bool {
-    return equal<undirected_graph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+    return base::base::template equal<undirected_graph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
         const edge_type* _ptr = this->get_edge(_x, _y);
         return _ptr != nullptr && *_ptr == _e;
     });
@@ -1372,22 +1412,22 @@ undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, co
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::undirected_multigraph(const undirected_multigraph& _rhs) {
-    assign<undirected_multigraph, undirected_multigraph>(_rhs, *this);
+    base::base::template assign<undirected_multigraph, undirected_multigraph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::undirected_multigraph(const undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) { // todo
-    // assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, undirected_multigraph>(_rhs, *this);
+    // base::base::template assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, undirected_multigraph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const undirected_multigraph& _rhs) -> undirected_multigraph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    assign<undirected_multigraph, undirected_multigraph>(_rhs, *this);
+    base::base::template assign<undirected_multigraph, undirected_multigraph>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const undirected_multigraph& _rhs) const -> bool {
-    return equal<undirected_multigraph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+    return base::base::template equal<undirected_multigraph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
         const auto _edges = this->get_edge(_x, _y);
         return std::any_of(_edges.first, _edges.second, [&_e](const auto& _iter) -> bool {
             return _e == *_iter.second;
@@ -1418,22 +1458,22 @@ undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::graph(const graph& _rhs) {
-    assign<graph, graph>(_rhs, *this);
+    base::base::template assign<graph, graph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::graph(const undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, graph>(_rhs, *this);
+    base::base::template assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, graph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const graph& _rhs) -> graph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    assign<graph, graph>(_rhs, *this);
+    base::base::template assign<graph, graph>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const graph& _rhs) const -> bool {
-    return equal<graph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+    return base::base::template equal<graph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
         const edge_type* _ptr = this->get_edge(_x, _y);
         return _ptr != nullptr && *_ptr == _e;
     });
@@ -1461,30 +1501,30 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, const key_typ
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const multigraph& _rhs) {
-    assign<multigraph, multigraph>(_rhs, *this);
+    base::base::template assign<multigraph, multigraph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    assign<graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph>(_rhs, *this);
+    base::base::template assign<graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph>(_rhs, *this);
+    base::base::template assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    assign<undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph>(_rhs, *this);
+    base::base::template assign<undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const multigraph& _rhs) -> multigraph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    assign<multigraph, multigraph>(_rhs, *this);
+    base::base::template assign<multigraph, multigraph>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator==(const multigraph& _rhs) const -> bool {
-    return equal<multigraph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
+    return base::base::template equal<multigraph>(*this, _rhs, [this](const key_type& _x, const key_type& _y, const edge_type& _e) -> bool {
         const auto _edges = this->get_edge(_x, _y);
         return std::any_of(_edges.first, _edges.second, [&_e](const auto& _iter) -> bool {
             return _e == *_iter.second;
