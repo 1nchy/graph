@@ -134,7 +134,7 @@ ICY_CASE("Shenyang") {
     ICY_SUBCASE("epidemic") {
         // epidemic in Taiyuan Street
         const key_type _source = "Taiyuan Street";
-        const cost_type _release = 10;
+        const cost_type _release = 8;
         const auto _dijk = _metro.dijkstra<cost_type>(_source, [](const edge_type& _e) -> cost_type {
             return _e.value().second;
         });
@@ -144,36 +144,46 @@ ICY_CASE("Shenyang") {
             if (_dijk.cost(_k) < _release) { _lockdown.emplace_back(_k); }
             else if (_dijk.cost(_k) < _release * 2) { _nostop.emplace_back(_k); }
         });
-        EXPECT_EQ(_lockdown.size(), 9);
-        EXPECT_EQ(_nostop.size(), 11);
+        EXPECT_EQ(_lockdown.size(), 5);
+        EXPECT_EQ(_nostop.size(), 9);
         for (const auto& _k : _lockdown) {
             _metro.disconnect(_k);
         }
-        EXPECT_EQ(_metro.size(), 26);
+        EXPECT_EQ(_metro.size(), 33);
         for (const auto& _k : _nostop) {
             vertex_type* const _v = _metro.get_vertex(_k);
             EXPECT_EQ(_v->indegree(), _v->outdegree());
-            std::vector<key_type> _next; _next.reserve(_v->indegree());
+            std::set<unsigned> _lines;
+            std::unordered_multimap<unsigned, key_type> _adjacency; _adjacency.reserve(_v->indegree());
             const auto _outs = _v->out();
             for (auto _o = _outs.first; _o != _outs.second; ++_o) {
-                _next.emplace_back(_o->first);
+                _lines.insert(_o->second->value().first);
+                _adjacency.emplace(_o->second->value().first, _o->first);
             }
-            for (size_t _i = 0; _i != _next.size(); ++_i) {
-                for (size_t _j = _i + 1; _j != _next.size(); ++_j) {
-                    const key_type& _x = _next[_i];
-                    const key_type& _y = _next[_j];
+            for (const auto& _line : _lines) {
+                EXPECT_LE(_adjacency.count(_line), 2);
+                if (_adjacency.count(_line) == 2) {
+                    auto _iters = _adjacency.equal_range(_line);
+                    const key_type& _x = (_iters.first++)->second;
+                    const key_type& _y = (_iters.first++)->second;
+                    EXPECT_EQ(_iters.first, _iters.second);
                     const edge_type* const _xe = _metro.get_edge(_k, _x);
                     const edge_type* const _ye = _metro.get_edge(_k, _y);
-                    if (_xe == nullptr || _ye == nullptr) { continue; }
-                    if (_xe->value().first == _ye->value().first) {
-                        _metro.connect(_x, _y, _xe->value().first, _xe->value().second + _ye->value().second - 1);
-                        _metro.disconnect(_k, _x);
-                        _metro.disconnect(_k, _y);
-                    }
+                    EXPECT_NE(_xe, nullptr);
+                    EXPECT_NE(_ye, nullptr);
+                    _metro.connect(_x, _y, _xe->value().first, _xe->value().second + _ye->value().second - 1);
+                    _metro.disconnect(_k, _x);
+                    _metro.disconnect(_k, _y);
+                }
+                else {
+                    auto _iters = _adjacency.equal_range(_line);
+                    const key_type& _x = (_iters.first++)->second;
+                    EXPECT_EQ(_iters.first, _iters.second);
+                    _metro.disconnect(_k, _x);
                 }
             }
         }
-        EXPECT_EQ(_metro.size(), 18);
+        EXPECT_EQ(_metro.size(), 19);
     }
     ICY_SUBCASE("from RESIDENTIAL to GREEN") {
         const auto _floyd = _metro.floyd<cost_type>([](const edge_type& _e) -> cost_type {
