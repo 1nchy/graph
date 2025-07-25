@@ -1,4 +1,4 @@
-/// metro
+/// test undirected_graph
 
 #include "test.hpp"
 #include "graph.hpp"
@@ -13,12 +13,15 @@ enum land_type {
     GREEN, // 绿地
 };
 
-ICY_CASE("Shenyang") {
-    icy::undirected_graph<std::string, land_type, std::pair<unsigned, unsigned>> _metro;
-    using key_type = typename decltype(_metro)::key_type;
-    using vertex_type = typename decltype(_metro)::vertex_type;
-    using edge_type = typename decltype(_metro)::edge_type;
-    using cost_type = unsigned;
+using undirected_graph = icy::undirected_graph<std::string, land_type, std::pair<unsigned, unsigned>>;
+
+using key_type = typename undirected_graph::key_type;
+using vertex_type = typename undirected_graph::vertex_type;
+using edge_type = typename undirected_graph::edge_type;
+using cost_type = unsigned;
+
+auto initialize(undirected_graph& _metro) -> void {
+    _metro.clear();
     /// line 1
     _metro.insert("Yinbin Road", RESIDENTIAL);
     _metro.insert("Tiexi Square", PUBLIC);
@@ -128,7 +131,38 @@ ICY_CASE("Shenyang") {
     _metro.connect("Chang'an Road", "Jiangdong Street", 10, 7);
     _metro.connect("Jiangdong Street", "Changqingnan Street", 10, 3);
     _metro.connect("Changqingnan Street", "Institute of Technology", 10, 3);
-    ///
+}
+
+ICY_CASE("constructor / assignment") {
+    undirected_graph _metro; initialize(_metro);
+    ICY_SUBCASE("undirected_graph") {
+        icy::undirected_graph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 43);
+        EXPECT_EQ(_g, _metro);
+        _g = _metro;
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 43);
+        EXPECT_EQ(_g, _metro);
+    }
+    ICY_SUBCASE("graph") {
+        icy::graph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 86);
+    }
+    ICY_SUBCASE("undirected_multigraph") {
+        icy::undirected_multigraph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 43);
+    }
+    ICY_SUBCASE("multigraph") {
+        icy::multigraph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 86);
+    }
+}
+ICY_CASE("simulation") {
+    undirected_graph _metro; initialize(_metro);
     EXPECT_EQ(_metro.order(), 38);
     EXPECT_EQ(_metro.size(), 43);
     ICY_SUBCASE("epidemic") {
@@ -211,20 +245,5 @@ ICY_CASE("Shenyang") {
         EXPECT_EQ(_minmax.first->first, "Nova 1st Road");
         EXPECT_EQ(_minmax.second->first, "Zhengxin Road");
         // EXPECT_EQ(test::to_string(_residential), "");
-    }
-    ICY_SUBCASE("to graph") {
-        icy::graph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
-        EXPECT_EQ(_g.order(), 38);
-        EXPECT_EQ(_g.size(), 86);
-    }
-    ICY_SUBCASE("to undirected_multigraph") {
-        icy::undirected_multigraph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
-        EXPECT_EQ(_g.order(), 38);
-        EXPECT_EQ(_g.size(), 43);
-    }
-    ICY_SUBCASE("to multigraph") {
-        icy::multigraph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
-        EXPECT_EQ(_g.order(), 38);
-        EXPECT_EQ(_g.size(), 86);
     }
 }
