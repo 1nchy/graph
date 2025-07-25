@@ -212,4 +212,19 @@ ICY_CASE("Shenyang") {
         EXPECT_EQ(_minmax.second->first, "Zhengxin Road");
         // EXPECT_EQ(test::to_string(_residential), "");
     }
+    ICY_SUBCASE("to graph") {
+        icy::graph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 86);
+    }
+    ICY_SUBCASE("to undirected_multigraph") {
+        icy::undirected_multigraph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 43);
+    }
+    ICY_SUBCASE("to multigraph") {
+        icy::multigraph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
+        EXPECT_EQ(_g.order(), 38);
+        EXPECT_EQ(_g.size(), 86);
+    }
 }

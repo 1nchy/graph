@@ -545,14 +545,19 @@ public: // algorithm
 protected:
     /**
      * @brief data and structure assignment
-     * @tparam _D destination type
      * @tparam _S source type
-     * @tparam _Dd graph::direction of destination
+     * @tparam _D destination type
      * @tparam _Sd graph::direction of source
-     * @param _this *this
-     * @param _rhs _rhs
+     * @tparam _Dd graph::direction of destination
+     * @param _src `_rhs`
+     * @param _dst `*this`
+     * @implements traverse each edge once for UNDIRECTED
+     * | dst \\ src |    UNDIRECTED    |    DIRECTED    |
+     * |:----------:|:----------------:|:--------------:|
+     * | UNDIRECTED |   connect(...)   |       --       |
+     * |  DIRECTED  |  biconnect(...)  |  connect(...)  |
      */
-    template <typename _D, typename _S, direction _Dd, direction _Sd> static auto assign(_D& _this, const _S& _rhs) -> void;
+    template <typename _S, typename _D, direction _Sd, direction _Dd> static auto assign(const _S& _src, _D& _dst) -> void;
     template <typename _G> static auto equal(const _G&, const _G&, std::function<bool(const key_type&, const key_type&, const edge_type&)>&&) -> bool;
     virtual auto for_each(const key_type& _x, const key_type& _y, edge_modifier<void>&& modifier) -> void = 0;
     virtual auto for_each(const key_type& _x, const key_type& _y, edge_visitor<void>&& visitor) const -> void = 0;
@@ -951,28 +956,28 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
 }
 
 
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename _D, typename _S, direction _Dd, direction _Sd> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::assign(_D& _this, const _S& _rhs) -> void {
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename _S, typename _D, direction _Sd, direction _Dd> auto
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::assign(const _S& _src, _D& _dst) -> void {
     static_assert(!(_Sd == DIRECTED && _Dd == UNDIRECTED));
-    assert(_this.empty());
+    assert(_dst.empty());
     std::unordered_set<key_type> _remains;
-    _remains.reserve(_rhs.order());
-    for (const auto& [_k, _v] : _rhs.vertices()) {
+    _remains.reserve(_src.order());
+    for (const auto& [_k, _v] : _src.vertices()) {
         _remains.insert(_k);
-        _this.insert(_k, static_cast<const typename vertex_type::base&>(*_rhs.get_vertex(_k)));
+        _dst.insert(_k, static_cast<const typename vertex_type::base&>(*_src.get_vertex(_k)));
     }
     while (!_remains.empty()) {
         const key_type _k = *_remains.cbegin();
-        const auto _outs = _rhs.get_vertex(_k)->out();
+        const auto _outs = _src.get_vertex(_k)->out();
         for (auto _out = _outs.first; _out != _outs.second; ++_out) {
             if constexpr (_Sd == UNDIRECTED) { // for UNDIRECTED, traverse each edge once
                 if (!_remains.contains(_out->first)) { continue; }
             }
             if constexpr (_Sd == _Dd) {
-                _this.connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
+                _dst.connect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
             }
             else {
-                _this.biconnect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
+                _dst.biconnect(_k, _out->first, static_cast<const typename edge_type::base&>(*_out->second));
             }
         }
         _remains.erase(_k);
@@ -1215,7 +1220,7 @@ floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x, c
 
 
 /**
- * @brief simple undirected graph
+ * @brief undirected simple graph
  * @note no multi edge, no loop
  * @tparam _Vk vertex key
  * @tparam _Vv vertex value (`void` by default)
@@ -1258,7 +1263,7 @@ public:
     template <typename... _Args> auto biconnect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void;
 };
 /**
- * @brief multi undirected graph
+ * @brief undirected multi graph
  * @tparam _Vk vertex key
  * @tparam _Vv vertex value (`void` by default)
  * @tparam _Ev edge value (`void` by default)
@@ -1304,7 +1309,7 @@ public:
     template <typename... _Args> auto biconnect(const key_type&, const key_type&, _Args&&...) -> void;
 };
 /**
- * @brief simple directed graph
+ * @brief directed simple graph
  * @note no multi edge, no loop
  * @tparam _Vk vertex key
  * @tparam _Vv vertex value (`void` by default)
@@ -1348,7 +1353,7 @@ public:
     template <typename... _Args> auto biconnect(const key_type& _x, const key_type& _y, _Args&&... _args) -> void;
 };
 /**
- * @brief multi directed graph
+ * @brief directed multi graph
  * @tparam _Vk vertex key
  * @tparam _Vv vertex value (`void` by default)
  * @tparam _Ev edge value (`void` by default)
@@ -1396,13 +1401,13 @@ public:
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::undirected_graph(const undirected_graph& _rhs) {
-    base::base::template assign<undirected_graph, undirected_graph, UNDIRECTED, UNDIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_graph, undirected_graph, UNDIRECTED, UNDIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const undirected_graph& _rhs) -> undirected_graph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    base::base::template assign<undirected_graph, undirected_graph, UNDIRECTED, UNDIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_graph, undirected_graph, UNDIRECTED, UNDIRECTED>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
@@ -1436,7 +1441,7 @@ undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, co
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::undirected_multigraph(const undirected_multigraph& _rhs) {
-    base::base::template assign<undirected_multigraph, undirected_multigraph, UNDIRECTED, UNDIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_multigraph, undirected_multigraph, UNDIRECTED, UNDIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::undirected_multigraph(const undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
@@ -1446,7 +1451,7 @@ template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Al
 undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const undirected_multigraph& _rhs) -> undirected_multigraph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    base::base::template assign<undirected_multigraph, undirected_multigraph, UNDIRECTED, UNDIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_multigraph, undirected_multigraph, UNDIRECTED, UNDIRECTED>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
@@ -1482,17 +1487,17 @@ undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::graph(const graph& _rhs) {
-    base::base::template assign<graph, graph, DIRECTED, DIRECTED>(*this, _rhs);
+    base::base::template assign<graph, graph, DIRECTED, DIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::graph(const undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    base::base::template assign<graph, undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, graph, DIRECTED, DIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, graph, DIRECTED, DIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const graph& _rhs) -> graph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    base::base::template assign<graph, graph, DIRECTED, DIRECTED>(*this, _rhs);
+    base::base::template assign<graph, graph, DIRECTED, DIRECTED>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
@@ -1525,25 +1530,25 @@ graph<_Vk, _Vv, _Ev, _Hash, _Alloc>::biconnect(const key_type& _x, const key_typ
 
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const multigraph& _rhs) {
-    base::base::template assign<multigraph, multigraph, DIRECTED, DIRECTED>(*this, _rhs);
+    base::base::template assign<multigraph, multigraph, DIRECTED, DIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    base::base::template assign<multigraph, graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, DIRECTED, DIRECTED>(*this, _rhs);
+    base::base::template assign<graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph, DIRECTED, DIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    base::base::template assign<multigraph, undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, DIRECTED, UNDIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_graph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph, UNDIRECTED, DIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc>
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::multigraph(const undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>& _rhs) {
-    base::base::template assign<multigraph, undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>, DIRECTED, UNDIRECTED>(*this, _rhs);
+    base::base::template assign<undirected_multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>, multigraph, UNDIRECTED, DIRECTED>(_rhs, *this);
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
 multigraph<_Vk, _Vv, _Ev, _Hash, _Alloc>::operator=(const multigraph& _rhs) -> multigraph& {
     if (&_rhs == this) { return *this; }
     this->clear();
-    base::base::template assign<multigraph, multigraph, DIRECTED, DIRECTED>(*this, _rhs);
+    base::base::template assign<multigraph, multigraph, DIRECTED, DIRECTED>(_rhs, *this);
     return *this;
 }
 template <typename _Vk, typename _Vv, typename _Ev, typename _Hash, typename _Alloc> auto
