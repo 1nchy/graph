@@ -135,6 +135,8 @@ auto initialize(undirected_graph& _metro) -> void {
 
 ICY_CASE("constructor / assignment") {
     undirected_graph _metro; initialize(_metro);
+    EXPECT_EQ(_metro.order(), 38);
+    EXPECT_EQ(_metro.size(), 43);
     ICY_SUBCASE("undirected_graph") {
         icy::undirected_graph<std::string, land_type, std::pair<unsigned, unsigned>> _g(_metro);
         EXPECT_EQ(_g.order(), 38);
