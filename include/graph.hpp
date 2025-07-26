@@ -20,9 +20,29 @@ namespace {
  */
 template <typename _Tp> auto greater_than(_Tp _s, _Tp _a, _Tp _b) -> bool {
     static_assert(std::is_arithmetic<_Tp>::value);
-    if (_s > _a) { return _s - _a > _b; }
-    if (_s > _b) { return _s - _b > _a; }
-    return false;
+    if constexpr (std::is_floating_point<_Tp>::value) {
+        return _s > _a + _b;
+    }
+    if constexpr (std::is_signed<_Tp>::value) {
+        if (_b > 0) {
+            if (_a > std::numeric_limits<_Tp>::max() - _b) {
+                return false;
+            }
+        }
+        else if (_b < 0) {
+            if (_a < std::numeric_limits<_Tp>::min() - _b) {
+                return true;
+            }
+        }
+        return _s > _a + _b;
+    }
+    if constexpr (std::is_unsigned<_Tp>::value) {
+        if (_a > std::numeric_limits<_Tp>::max() - _b) {
+            return false;
+        }
+        return _s > _a + _b;
+    }
+    return _s > _a + _b;
 };
 }
 
@@ -1138,10 +1158,8 @@ dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
 floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
 floyd(const base& _g, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g) {
-    icy::graph<key_type, void, cost_type> _costs; // i->i cost, i->j cost
     for (const auto& [_k, _v] : _g.vertices()) {
         _intermediary.insert(_k);
-        // _costs.insert(_k);
     }
     auto get_cost = [this, &_g](const key_type& _i, const key_type& _j) -> cost_type {
         assert(_g.contains(_i) && _g.contains(_j));
