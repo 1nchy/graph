@@ -558,10 +558,8 @@ public: // algorithm
     template <typename _R> auto floyd(edge_visitor<_R>&& visitor) const -> graph::floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>;
     auto bfs(const key_type& _k, vertex_modifier<void>&& modifier) -> size_t;
     auto bfs(const key_type& _k, vertex_visitor<void>&& visitor) const -> size_t;
-    auto dfs(const key_type& _k, vertex_modifier<void>&& modifier) -> size_t;
-    auto dfs(const key_type& _k, vertex_modifier<void>&& modifier, vertex_modifier<void>&& backtracer) -> size_t;
-    auto dfs(const key_type& _k, vertex_visitor<void>&& visitor) const -> size_t;
-    auto dfs(const key_type& _k, vertex_visitor<void>&& visitor, vertex_visitor<void>&& backtracer) const -> size_t;
+    auto dfs(const key_type& _k, vertex_modifier<void>&& pre_modifier = nullptr, vertex_modifier<void>&& post_modifier = nullptr, vertex_modifier<void>&& backtracer = nullptr) -> size_t;
+    auto dfs(const key_type& _k, vertex_visitor<void>&& pre_visitor = nullptr, vertex_visitor<void>&& post_visitor = nullptr, vertex_visitor<void>&& backtracer = nullptr) const -> size_t;
 protected:
     /**
      * @brief data and structure assignment
@@ -867,28 +865,8 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_
     return _cnt;
 }
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
-    if (!contains(_key)) { return 0; }
-    std::vector<key_type> _preorder;
-    std::unordered_set<key_type> _s; // record vertex whether visited
-    _preorder.push_back(_key);
-    size_t _cnt = 0;
-    while (!_preorder.empty()) {
-        const key_type _k = _preorder.back(); _preorder.pop_back();
-        if (_s.contains(_k)) { continue; }
-        vertex_type* const _v = get_vertex(_k);
-        modifier(_k, *_v); ++_cnt;
-        _s.insert(_k);
-        const auto _outs = _v->out();
-        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            if (_s.contains(_out->first)) { continue; }
-            _preorder.push_back(_out->first);
-        }
-    }
-    return _cnt;
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_modifier<void>&& modifier, vertex_modifier<void>&& backtracer) -> size_t {
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::
+dfs(const key_type& _key, vertex_modifier<void>&& pre_modifier, vertex_modifier<void>&& post_modifier, vertex_modifier<void>&& backtracer) -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<std::vector<key_type>> _trail;
     std::unordered_set<key_type> _preorder;
@@ -898,9 +876,11 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
     while (!_trail.empty()) {
         while (!_trail.back().empty()) {
             const key_type _k = _trail.back().back();
+            // the key was once saved, and has been accessed in subsequent traversals
             if (_preorder.contains(_k)) { _trail.back().pop_back(); break; }
             vertex_type* const _v = get_vertex(_k);
-            modifier(_k, *_v); ++_cnt; _preorder.insert(_k);
+            if (pre_modifier) { pre_modifier(_k, *_v); }
+            ++_cnt; _preorder.insert(_k);
             const auto _outs = _v->out();
             std::vector<key_type> _children;
             for (auto _out = _outs.first; _out != _outs.second; ++_out) {
@@ -915,34 +895,20 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
             const key_type _k = _trail.back().back(); _trail.back().pop_back();
             if (_postorder.contains(_k)) { continue; }
             vertex_type* const _v = get_vertex(_k);
-            backtracer(_k, *_v); _postorder.insert(_k);
+            if (post_modifier) { post_modifier(_k, *_v); }
+            if (backtracer && _trail.size() >= 2) {
+                const key_type _k = _trail.at(_trail.size() - 2).back();
+                vertex_type* const _v = get_vertex(_k);
+                backtracer(_k, *_v);
+            }
+            _postorder.insert(_k);
         }
     }
     return _cnt;
 }
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& visitor) const -> size_t {
-    if (!contains(_key)) { return 0; }
-    std::vector<key_type> _preorder;
-    std::unordered_set<key_type> _s; // record vertex whether visited
-    _preorder.push_back(_key);
-    size_t _cnt = 0;
-    while (!_preorder.empty()) {
-        const key_type _k = _preorder.back(); _preorder.pop_back();
-        if (_s.contains(_k)) { continue; }
-        const vertex_type* const _v = get_vertex(_k);
-        visitor(_k, *_v); ++_cnt;
-        _s.insert(_k);
-        const auto _outs = _v->out();
-        for (auto _out = _outs.first; _out != _outs.second; ++_out) {
-            if (_s.contains(_out->first)) { continue; }
-            _preorder.push_back(_out->first);
-        }
-    }
-    return _cnt;
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_visitor<void>&& visitor, vertex_visitor<void>&& backtracer) const -> size_t {
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::
+dfs(const key_type& _key, vertex_visitor<void>&& pre_visitor, vertex_visitor<void>&& post_visitor, vertex_visitor<void>&& backtracer) const -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<std::vector<key_type>> _trail;
     std::unordered_set<key_type> _preorder;
@@ -952,9 +918,11 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
     while (!_trail.empty()) {
         while (!_trail.back().empty()) {
             const key_type _k = _trail.back().back();
+            // the key was once saved, and has been accessed in subsequent traversals
             if (_preorder.contains(_k)) { _trail.back().pop_back(); break; }
             const vertex_type* const _v = get_vertex(_k);
-            visitor(_k, *_v); ++_cnt; _preorder.insert(_k);
+            if (pre_visitor) { pre_visitor(_k, *_v); }
+            ++_cnt; _preorder.insert(_k);
             const auto _outs = _v->out();
             std::vector<key_type> _children;
             for (auto _out = _outs.first; _out != _outs.second; ++_out) {
@@ -969,7 +937,13 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(const key_type& _key, vertex_
             const key_type _k = _trail.back().back(); _trail.back().pop_back();
             if (_postorder.contains(_k)) { continue; }
             const vertex_type* const _v = get_vertex(_k);
-            backtracer(_k, *_v); _postorder.insert(_k);
+            if (post_visitor) { post_visitor(_k, *_v); }
+            if (backtracer && _trail.size() >= 2) {
+                const key_type _k = _trail.at(_trail.size() - 2).back();
+                const vertex_type* const _v = get_vertex(_k);
+                backtracer(_k, *_v);
+            }
+            _postorder.insert(_k);
         }
     }
     return _cnt;
