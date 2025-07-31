@@ -120,7 +120,7 @@ ICY_CASE("graph preorder and postorder") {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
-        }, [&_backtrace](const key_type& _k, const vertex_type& _v) {
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
             _backtrace.push_back(_k);
         });
         dfs("A");
@@ -133,7 +133,7 @@ ICY_CASE("graph preorder and postorder") {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
-        }, [&_backtrace](const key_type& _k, const vertex_type& _v) {
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
             _backtrace.push_back(_k);
         });
         dfs("F");
@@ -175,7 +175,7 @@ ICY_CASE("multigraph preorder and postorder") {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
-        }, [&_backtrace](const key_type& _k, const vertex_type& _v) {
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
             _backtrace.push_back(_k);
         });
         dfs("B");
@@ -188,7 +188,7 @@ ICY_CASE("multigraph preorder and postorder") {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
-        }, [&_backtrace](const key_type& _k, const vertex_type& _v) {
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
             _backtrace.push_back(_k);
         });
         dfs("E");
@@ -201,7 +201,7 @@ ICY_CASE("multigraph preorder and postorder") {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
-        }, [&_backtrace](const key_type& _k, const vertex_type& _v) {
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
             _backtrace.push_back(_k);
         });
         dfs("I");

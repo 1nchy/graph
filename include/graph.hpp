@@ -87,6 +87,7 @@ template <typename _Vk, typename _Vv, typename _Ev, direction _Gd, typename _Has
 template <typename _Vk, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct multigraph_basis;
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra;
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct floyd;
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct tarjan;
 }
 template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct graph;
 template <typename _Vk, typename _Vv = void, typename _Ev = void, typename _Hash = std::hash<_Vk>, typename _Alloc = std::allocator<_Vk>> struct multigraph;
@@ -556,10 +557,61 @@ public: // algorithm
      * @note can't handle negative weight loop
      */
     template <typename _R> auto floyd(edge_visitor<_R>&& visitor) const -> graph::floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>;
+    auto tarjan() const -> graph::tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>;
     auto bfs(const key_type& _k, vertex_modifier<void>&& modifier) -> size_t;
     auto bfs(const key_type& _k, vertex_visitor<void>&& visitor) const -> size_t;
-    auto dfs(const key_type& _k, vertex_modifier<void>&& pre_modifier = nullptr, vertex_modifier<void>&& post_modifier = nullptr, vertex_modifier<void>&& backtracer = nullptr) -> size_t;
-    auto dfs(const key_type& _k, vertex_visitor<void>&& pre_visitor = nullptr, vertex_visitor<void>&& post_visitor = nullptr, vertex_visitor<void>&& backtracer = nullptr) const -> size_t;
+    /**
+     * @brief depth first search
+     * @param _k the begin of dfs
+     * @param pre_modifier pre-order modifier (traverse vertex in pre-order)
+     * @param post_modifer post-order modifier (traverse vertex in post-order)
+     * @param backtracer invoke when backtracing from dfs
+     * @return the count of traversed vertices
+     * @note backtracer : `std::function<void(const key_type&, vertex_type&, const key_type&)>&&`
+     * @example 
+     * traditional dfs
+     * ```c++
+     * dfs(u):
+     *   if traversed(u) return;
+     *   pre_modifier(key(u), u)
+     *   for v : u.outs()
+     *     if not traversed(v)
+     *       dfs(v)
+     *       backtracer(key(u), u, key(v))
+     *   post_modifier(key(u), u)
+     * ```
+     */
+    auto dfs(const key_type& _k,
+             vertex_modifier<void>&& pre_modifier = nullptr,
+             vertex_modifier<void>&& post_modifier = nullptr,
+             std::function<void(const key_type&, vertex_type&, const key_type&)>&& backtracer = nullptr
+            ) -> size_t;
+    /**
+     * @brief depth first search
+     * @param _k the begin of dfs
+     * @param pre_visitor pre-order visitor (traverse vertex in pre-order)
+     * @param post_visitor post-order visitor (traverse vertex in post-order)
+     * @param backtracer invoke when backtracing from dfs
+     * @return the count of traversed vertices
+     * @note backtracer : `std::function<void(const key_type&, const vertex_type&, const key_type&)>&&`
+     * @example 
+     * traditional dfs
+     * ```c++
+     * dfs(u):
+     *   if traversed(u) return;
+     *   pre_visitor(key(u), u)
+     *   for v : u.outs()
+     *     if not traversed(v)
+     *       dfs(v)
+     *       backtracer(key(u), u, key(v))
+     *   post_visitor(key(u), u)
+     * ```
+     */
+    auto dfs(const key_type& _k,
+             vertex_visitor<void>&& pre_visitor = nullptr,
+             vertex_visitor<void>&& post_visitor = nullptr,
+             std::function<void(const key_type&, const vertex_type&, const key_type&)>&& backtracer = nullptr
+            ) const -> size_t;
 protected:
     /**
      * @brief data and structure assignment
@@ -750,6 +802,32 @@ private:
      */
     icy::graph<key_type, void, std::pair<cost_type, key_type>> _intermediary;
 };
+/**
+ * @brief tarjan result wrapper
+ */
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct tarjan {
+public:
+    using base = basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>;
+    using vertex_type = typename base::vertex_type;
+    using edge_type = typename base::edge_type;
+    using key_type = typename base::key_type;
+    template <typename __Vk, type __Gt, typename __Vv, typename __Ev, direction __Gd, typename __Hash, typename __Alloc> friend struct basis;
+private:
+    tarjan(const base&);
+public:
+    tarjan(const tarjan&) = default;
+    tarjan(tarjan&&) = default;
+    auto operator=(const tarjan&) -> tarjan& = delete;
+    auto operator=(tarjan&&) -> tarjan& = delete;
+    ~tarjan() = default;
+public:
+    const auto& vertices() const { return _vertices; }
+    const auto& edges() const { return _edges; }
+private:
+    const base& _g;
+    std::unordered_set<key_type> _vertices;
+    std::unordered_set<const edge_type*> _edges;
+};
 
 /// basis public implementation
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename... _Args> auto
@@ -823,6 +901,11 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::floyd(edge_visitor<_R>&& visitor)
     return graph::floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc>(*this, std::move(visitor));
 }
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::tarjan() const -> graph::tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc> {
+    static_assert(_Gd == UNDIRECTED);
+    return graph::tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>(*this);
+}
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
 basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
     if (!contains(_key)) { return 0; }
     std::queue<key_type> _q;
@@ -865,8 +948,10 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_
     return _cnt;
 }
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::
-dfs(const key_type& _key, vertex_modifier<void>&& pre_modifier, vertex_modifier<void>&& post_modifier, vertex_modifier<void>&& backtracer) -> size_t {
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(
+    const key_type& _key, vertex_modifier<void>&& pre_modifier, vertex_modifier<void>&& post_modifier,
+    std::function<void(const key_type&, vertex_type&, const key_type&)>&& backtracer
+) -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<std::vector<key_type>> _trail;
     std::unordered_set<key_type> _preorder;
@@ -897,9 +982,9 @@ dfs(const key_type& _key, vertex_modifier<void>&& pre_modifier, vertex_modifier<
             vertex_type* const _v = get_vertex(_k);
             if (post_modifier) { post_modifier(_k, *_v); }
             if (backtracer && _trail.size() >= 2) {
-                const key_type _k = _trail.at(_trail.size() - 2).back();
-                vertex_type* const _v = get_vertex(_k);
-                backtracer(_k, *_v);
+                const key_type _u = _trail.at(_trail.size() - 2).back();
+                vertex_type* const _v = get_vertex(_u);
+                backtracer(_u, *_v, _k);
             }
             _postorder.insert(_k);
         }
@@ -907,8 +992,10 @@ dfs(const key_type& _key, vertex_modifier<void>&& pre_modifier, vertex_modifier<
     return _cnt;
 }
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
-basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::
-dfs(const key_type& _key, vertex_visitor<void>&& pre_visitor, vertex_visitor<void>&& post_visitor, vertex_visitor<void>&& backtracer) const -> size_t {
+basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dfs(
+    const key_type& _key, vertex_visitor<void>&& pre_visitor, vertex_visitor<void>&& post_visitor,
+    std::function<void(const key_type&, const vertex_type&, const key_type&)>&& backtracer
+) const -> size_t {
     if (!contains(_key)) { return 0; }
     std::vector<std::vector<key_type>> _trail;
     std::unordered_set<key_type> _preorder;
@@ -939,9 +1026,9 @@ dfs(const key_type& _key, vertex_visitor<void>&& pre_visitor, vertex_visitor<voi
             const vertex_type* const _v = get_vertex(_k);
             if (post_visitor) { post_visitor(_k, *_v); }
             if (backtracer && _trail.size() >= 2) {
-                const key_type _k = _trail.at(_trail.size() - 2).back();
-                const vertex_type* const _v = get_vertex(_k);
-                backtracer(_k, *_v);
+                const key_type _u = _trail.at(_trail.size() - 2).back();
+                const vertex_type* const _v = get_vertex(_u);
+                backtracer(_u, *_v, _k);
             }
             _postorder.insert(_k);
         }
@@ -1207,6 +1294,44 @@ floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x, c
         return _intermediary.get_edge(_x, _y)->value().first;
     }
     return std::numeric_limits<cost_type>::max();
+}
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc>
+tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::tarjan(const base& _g) : _g(_g) {
+    static_assert(_Gd == UNDIRECTED);
+    std::unordered_set<key_type> _s;
+    for (const auto& [_k, _v] : _g.vertices()) {
+        _s.insert(_k);
+    }
+    while (!_s.empty()) {
+        const key_type& _k = *_s.cbegin();
+        std::unordered_map<key_type, size_t> _dfn, _low;
+        std::vector<key_type> _trail;
+        _g.dfs(_k, [&_dfn, &_low, &_trail, &_s](const key_type& _k, const vertex_type& _v) {
+            _trail.emplace_back(_k);
+            _s.erase(_k);
+            _dfn[_k] = _low[_k] = _dfn.size() + 1;
+        }, [&_dfn, &_low, &_trail](const key_type& _k, const vertex_type& _v) {
+            _trail.pop_back();
+            const auto _ins = _v.in();
+            for (auto _i = _ins.first; _i != _ins.second; ++_i) {
+                if (!_trail.empty() && _i->first == _trail.back()) { continue; }
+                _low[_k] = std::min(_low[_k], _low[_i->first]);
+            }
+        }, [&_dfn, &_low, &_trail, this](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _low[_k] = std::min(_low[_k], _low[_u]);
+            if (_low[_u] >= _dfn[_k]) {
+                this->_vertices.insert(_k);
+            }
+        });
+        for (const auto& [_k, _v] : _g.vertices()) {
+            const auto _outs = _v->out();
+            for (auto _o = _outs.first; _o != _outs.second; ++_o) {
+                if (_v->count_to(_o->first) == 1 && _low[_o->first] > _dfn[_k]) {
+                    this->_edges.insert(_o->second);
+                }
+            }
+        }
+    }
 }
 }
 

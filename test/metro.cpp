@@ -248,4 +248,9 @@ ICY_CASE("simulation") {
         EXPECT_EQ(_minmax.second->first, "Zhengxin Road");
         // EXPECT_EQ(test::to_string(_residential), "");
     }
+    ICY_SUBCASE("high load") {
+        const auto _tarjan = _metro.tarjan();
+        EXPECT_EQ(_tarjan.vertices().size(), 12);
+        EXPECT_EQ(_tarjan.edges().size(), 14);
+    }
 }
