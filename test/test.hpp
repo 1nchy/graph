@@ -23,16 +23,85 @@
 #define ICY_ATTRIBUTE_CONSTRUCTOR __attribute__((constructor))
 #define ICY_ATTRIBUTE_DESTRUCTOR __attribute__((destructor))
 
-#define ICY_CONSTEXPR(...) \
+#define GLOBAL_EVAL(...) \
     const int ICY_ANONYMOUS(ICY_ANONYMOUS_VAR_) = __VA_ARGS__
 
 namespace test {
 
-template <typename _T> auto to_string() -> std::string {
-    std::string _s = __PRETTY_FUNCTION__; // std::string {anonymous}::to_string() [with _T = A; std::string = std::__cxx11::basic_string<char>]
+enum bracket : unsigned { PARENTHESES, SQUARE, CURLY, ANGLE, NONE };
+constexpr std::pair<char, char> brackets[bracket::NONE] = {{'(', ')'}, {'[', ']'}, {'{', '}'}, {'<', '>'}};
+#if defined(_MSC_VER)
+constexpr std::string keywords[] = {"class", "struct", "enum", "union"};
+#endif
+enum level : unsigned { INFO, WARNING, ERROR, FATAL };
+struct fatal_exception {};
+
+namespace __details__ {
+struct arguments_stringify;
+struct arguments_stringify {
+    template <typename _T, typename... _Ts> static auto append(std::string&, _T&&, _Ts&&...) -> void;
+    static auto append(std::string&) -> void;
+};
+}
+
+namespace {
+template <typename _Begin, typename _End> concept iterable_range = requires (_Begin _b, _End _e) {
+    {++_b}; {*_b}; requires !std::is_void<decltype(*_b)>::value && std::is_same<_Begin, _End>::value; {_b != _e};
+};
+template <typename _T> concept forward_iterable = !std::is_array<_T>::value &&
+requires (const _T& _obj) {
+    {std::begin(_obj)}; {std::end(_obj)};
+    requires iterable_range<decltype(std::begin(_obj)), decltype(std::end(_obj))>;
+} && !requires (const _T& _obj) {
+    {std::rbegin(_obj)}; {std::rend(_obj)};
+    requires iterable_range<decltype(std::rbegin(_obj)), decltype(std::rend(_obj))>;
+};
+template <typename _T> concept bidirectional_iterable = std::is_array<_T>::value || (
+    requires (const _T& _obj) {
+        {std::begin(_obj)}; {std::end(_obj)};
+        requires iterable_range<decltype(std::begin(_obj)), decltype(std::end(_obj))>;
+    }
+) && (
+    requires (const _T& _obj) {
+        {std::rbegin(_obj)}; {std::rend(_obj)};
+        requires iterable_range<decltype(std::rbegin(_obj)), decltype(std::rend(_obj))>;
+    }
+);
+}
+
+template <typename _T = void> auto to_string() -> std::string {
+    // GCC 9.2.0 // std::string test::to_string() [with _T = A; std::string = std::__cxx11::basic_string]
+    // GCC 8.3.0 // std::__cxx11::string test::to_string() [with _T = A; std::__cxx11::string = std::__cxx11::basic_string]
+    // CLANG 7.0.1 // std::string to_string() [_T = A]
+#if defined(_MSC_VER)
+    std::string _s = __FUNCSIG__;
+#elif defined(__clang__) || defined(__GNUC__)
+    std::string _s = __PRETTY_FUNCTION__;
+#else
+    static_assert(false, "unknown compiler");
+#endif
+#if defined(_MSC_VER) // class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > __cdecl to_string<class A>(void)
+    std::string::size_type _begin = _s.find("to_string") + 10;
+    std::string::size_type _end = _s.size() - 7;
+    _s = _s.substr(_begin, _end - _begin);
+    for (const auto& _word : keywords) {
+        if (_s.starts_with(_word)) {
+            _s = _s.substr(_word.size() + 1);
+            break;
+        }
+    }
+#elif defined(__clang__) // std::string to_string() [_T = A]
+    std::string::size_type _begin = _s.find('=') + 2;
+    std::string::size_type _end = _s.size() - 1;
+    _s = _s.substr(_begin, _end - _begin);
+#elif defined(__GNUC__) // std::string to_string() [with _T = A; std::string = std::__cxx11::basic_string]
     std::string::size_type _begin = _s.find('=') + 2;
     std::string::size_type _end = _s.find(';');
-    return _s.substr(_begin, _end - _begin).append("(...)");
+    _s = _s.substr(_begin, _end - _begin);
+#else
+    static_assert(false);
+#endif
+    return _s.append("(...)");
 }
 auto to_string(bool _b) -> std::string { return _b ? "true" : "false"; }
 auto to_string(char _c) -> std::string { return std::string{'\'', _c, '\''}; }
@@ -42,53 +111,12 @@ auto to_string(const std::string& _s) -> std::string { return "\"" + _s + "\""; 
 template <> auto to_string<void>() -> std::string { return ""; }
 template <std::integral _T> auto to_string(const _T& _t) -> std::string { return std::to_string(_t); }
 template <std::floating_point _T> auto to_string(const _T& _t) -> std::string { return std::to_string(_t); }
-
+template <bracket _B, typename... _Args> auto to_string(_Args&&... _args) -> std::string;
 template <typename _K1, typename _K2> auto to_string(const std::pair<_K1, _K2>& _p) -> std::string;
 template <typename... _Ts> auto to_string(const std::tuple<_Ts...>& _t) -> std::string;
+template <bidirectional_iterable _T> auto to_string(const _T& _t) -> std::string;
+template <forward_iterable _T> auto to_string(const _T& _t) -> std::string;
 template <typename _T> auto to_string(const _T&) -> std::string;
-template <typename _K1, typename _K2> auto to_string(const std::pair<_K1, _K2>& _p) -> std::string {
-    return "(" + to_string(_p.first) + "," + to_string(_p.second) + ")";
-}
-namespace {
-template <size_t _Index, typename _Tuple> struct tuple_stringify {
-    static void append(std::string& _s, const _Tuple& _t) {
-        tuple_stringify<_Index - 1, _Tuple>::append(_s, _t);
-        _s.push_back(',');
-        _s.append(to_string(std::get<_Index - 1>(_t)));
-    }
-};
-template <typename _Tuple> struct tuple_stringify<1, _Tuple> {
-    static void append(std::string& _s, const _Tuple& _t) {
-        _s.append(to_string(std::get<0>(_t)));
-    }
-};
-}
-template <typename... _Ts> auto to_string(const std::tuple<_Ts...>& _t) -> std::string {
-    std::string _s("(");
-    tuple_stringify<sizeof...(_Ts), decltype(_t)>::append(_s, _t);
-    _s.append(")");
-    return _s;
-}
-namespace {
-template <typename _Begin, typename _End> concept iterable_range = requires (_Begin _b, _End _e) {
-    {++_b}; {*_b}; requires !std::is_void<decltype(*_b)>::value && std::is_same<_Begin, _End>::value; {_b != _e};
-};
-template <typename _T> concept forward_iterable = !std::is_array<_T>::value &&
-requires (const _T& _obj) {
-    {std::begin(_obj)}; {std::end(_obj)}; requires iterable_range<decltype(std::begin(_obj)), decltype(std::end(_obj))>;
-} && !requires (const _T& _obj) {
-    {std::rbegin(_obj)}; {std::rend(_obj)}; requires iterable_range<decltype(std::rbegin(_obj)), decltype(std::rend(_obj))>;
-};
-template <typename _T> concept bidirectional_iterable = std::is_array<_T>::value || (
-    requires (const _T& _obj) {
-        {std::begin(_obj)}; {std::end(_obj)}; requires iterable_range<decltype(std::begin(_obj)), decltype(std::end(_obj))>;
-    }
-) && (
-    requires (const _T& _obj) {
-        {std::rbegin(_obj)}; {std::rend(_obj)}; requires iterable_range<decltype(std::rbegin(_obj)), decltype(std::rend(_obj))>;
-    }
-);
-}
 template <bidirectional_iterable _T> auto to_string(const _T& _t) -> std::string {
     std::string _s("[");
     for (auto _i = std::begin(_t); _i != std::end(_t); _s.push_back(',')) {
@@ -107,8 +135,36 @@ template <forward_iterable _T> auto to_string(const _T& _t) -> std::string {
     _s.append("}");
     return _s;
 }
+template <typename _K1, typename _K2> auto to_string(const std::pair<_K1, _K2>& _p) -> std::string {
+    return test::to_string<PARENTHESES>(_p.first, _p.second);
+}
+namespace {
+template <size_t... _N, typename... _Ts> auto tuple_to_string(std::index_sequence<_N...>, const std::tuple<_Ts...>& _t) -> std::string {
+    return test::to_string<PARENTHESES>(std::get<_N>(_t)...);
+};
+}
+template <typename... _Ts> auto to_string(const std::tuple<_Ts...>& _t) -> std::string {
+    return tuple_to_string(std::make_index_sequence<sizeof...(_Ts)>{}, _t);
+}
+template <bracket _B, typename... _Args> auto to_string(_Args&&... _args) -> std::string {
+    std::string _s;
+    if constexpr (_B != bracket::NONE) { _s.push_back(brackets[_B].first); }
+    __details__::arguments_stringify::append(_s, std::forward<_Args>(_args)...);
+    if constexpr (_B != bracket::NONE) { _s.push_back(brackets[_B].second); }
+    return _s;
+};
+
 template <typename _T> auto to_string(const _T& _t) -> std::string {
     return to_string<_T>();
+}
+
+namespace __details__ {
+template <typename _T, typename... _Ts> auto arguments_stringify::append(std::string& _s, _T&& _t, _Ts&&... _ts) -> void {
+    _s.append(to_string(std::forward<_T>(_t)));
+    if (sizeof...(_Ts) != 0) { _s.push_back(','); }
+    arguments_stringify::append(_s, std::forward<_Ts>(_ts)...);
+}
+auto arguments_stringify::append(std::string& _s) -> void {}
 }
 
 struct subcase;
@@ -184,35 +240,54 @@ private:
 };
 namespace {
 enum binary_type { EQ, NE, GT, LT, GE, LE };
-template <binary_type _Ct, typename _L, typename _R> struct binary { auto operator()(const _L&, const _R&) const -> bool; };
-template <typename _L, typename _R> struct binary<EQ, _L, _R> { auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs == _rhs; } };
-template <typename _L, typename _R> struct binary<NE, _L, _R> { auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs != _rhs; } };
-template <typename _L, typename _R> struct binary<GT, _L, _R> { auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs > _rhs; } };
-template <typename _L, typename _R> struct binary<LT, _L, _R> { auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs < _rhs; } };
-template <typename _L, typename _R> struct binary<GE, _L, _R> { auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs >= _rhs; } };
-template <typename _L, typename _R> struct binary<LE, _L, _R> { auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs <= _rhs; } };
+template <binary_type _Ct, typename _L, typename _R> struct binary {
+    auto operator()(const _L&, const _R&) const -> bool;
+};
+#define STRUCT_BINARY(BT, OP) \
+    template <typename _L, typename _R> struct binary<BT, _L, _R> { \
+        auto operator()(const _L& _lhs, const _R& _rhs) const -> bool { return _lhs OP _rhs; } \
+    }
+STRUCT_BINARY(EQ, ==);
+STRUCT_BINARY(NE, !=);
+STRUCT_BINARY(GT, >);
+STRUCT_BINARY(LT, <);
+STRUCT_BINARY(GE, >=);
+STRUCT_BINARY(LE, <=);
 enum unary_type { TRUE, FALSE };
 template <unary_type _Ut, typename _T> struct unary { auto operator()(const _T&) const -> bool; };
-template <typename _T> struct unary<TRUE, _T> { auto operator()(const _T& _t) const -> bool { return _t; } };
-template <typename _T> struct unary<FALSE, _T> { auto operator()(const _T& _t) const -> bool { return !_t; } };
+#define STRUCT_UNARY(UT, OP) \
+    template <typename _T> struct unary<UT, _T> { \
+        auto operator()(const _T& _t) const -> bool { return OP _t; } \
+    }
+STRUCT_UNARY(TRUE, );
+STRUCT_UNARY(FALSE, !);
 }
 struct result {
 public:
-    result(const char*, unsigned, const char*, const char*, const char*, const char*);
+    result(const char*, unsigned, level, const char*, const char*, const char*, const char*);
 public:
-    template <binary_type _Ct, typename _L, typename _R> auto binary_assert(const _L&, const _R&) -> result&;
     template <unary_type _Ut, typename _T> auto unary_assert(const _T&) -> result&;
+    template <binary_type _Bt, typename _L, typename _R> auto binary_assert(const _L&, const _R&) -> result&;
+    template <binary_type _Bt, size_t _I, typename _L, typename _R>
+    auto sequence_assert(const _L&, const _R&) -> result&;
+    template <binary_type _Bt, size_t _I, typename _L, typename _R, typename... _Args>
+    auto sequence_assert(const _L&, const _R&, _Args&&... _args) -> result&;
     template <typename _Ex> auto exception_assert(const _Ex&) -> result&; // threw an exception
     auto exception_failed() -> result&; // threw an exception
     auto noexception_failed() -> result&; // not threw any exception
 public:
     static auto errors() -> size_t { return _errors; }
+    static auto fatals() -> size_t { return _fatals; }
+    static auto reset_errors() -> void { _errors = 0; }
 private:
     // auto get_exception_type() const -> std::string;
     auto get_exception_message() const -> std::string;
+    auto report() const -> void;
+    auto count() -> void;
 private:
     std::string _file;
     unsigned _line;
+    level _level;
     std::string _assertion;
     std::string _expr;
     bool _failed;
@@ -221,6 +296,7 @@ private:
     std::string _exception_message;
 private:
     inline static size_t _errors = 0;
+    inline static size_t _fatals = 0;
 };
 
 
@@ -283,53 +359,62 @@ auto testcase::enroll(function_type _function, const char* _label, const char* _
     return 0;
 }
 
-result::result(const char* _file, unsigned _line, const char* _assertion, const char* _expr, const char* _exception_type = "", const char* _exception_message = "") :
-_file(_file), _line(_line), _assertion(_assertion), _expr(_expr), _exception_type(_exception_type), _exception_message(_exception_message) {}
-template <binary_type _Ct, typename _L, typename _R> auto result::binary_assert(const _L& _lhs, const _R& _rhs) -> result& {
-    if (!binary<_Ct, _L, _R>()(_lhs, _rhs)) {
-        std::cout << _file << "(" << _line << ") FAILED!\n";
-        std::cout << "  " << _assertion << "(" << _expr << ")\n";
-        std::cout << "with expansion:\n";
-        std::cout << "  " << _assertion << "(" << test::to_string(_lhs) << ", " << test::to_string(_rhs) << ")" << std::endl;
-        ++_errors;
+result::result(const char* _file, unsigned _line, level _level, const char* _assertion, const char* _expr,
+               const char* _exception_type = "", const char* _exception_message = "") :
+_file(_file), _line(_line), _level(_level), _assertion(_assertion), _expr(_expr),
+_exception_type(_exception_type), _exception_message(_exception_message) {}
+template <unary_type _Ut, typename _T> auto result::unary_assert(const _T& _t) -> result& {
+    if (!unary<_Ut, _T>()(_t)) {
+        report();
+        std::cout << "  " << _assertion << test::to_string<PARENTHESES>(_t) << std::endl;
+        count();
     }
     return *this;
 }
-template <unary_type _Ut, typename _T> auto result::unary_assert(const _T& _t) -> result& {
-    if (!unary<_Ut, _T>()(_t)) {
-        std::cout << _file << "(" << _line << ") FAILED!\n";
-        std::cout << "  " << _assertion << "(" << _expr << ")\n";
-        std::cout << "with expansion:\n";
-        std::cout << "  " << _assertion << "(" << test::to_string(_t) << ")" << std::endl;
-        ++_errors;
+template <binary_type _Bt, typename _L, typename _R> auto result::binary_assert(const _L& _lhs, const _R& _rhs) -> result& {
+    if (!binary<_Bt, _L, _R>()(_lhs, _rhs)) {
+        report();
+        std::cout << "  " << _assertion << test::to_string<PARENTHESES>(_lhs, _rhs) << std::endl;
+        count();
     }
     return *this;
+}
+template <binary_type _Bt, size_t _I, typename _L, typename _R> auto result::sequence_assert(const _L& _lhs, const _R& _rhs) -> result& {
+    if (!binary<_Bt, _L, _R>()(_lhs, _rhs)) {
+        report();
+        std::cout << "  " << _assertion << test::to_string<ANGLE>(_I, _I + 1) << test::to_string<PARENTHESES>(_lhs, _rhs) << std::endl;
+        count();
+    }
+    return *this;
+}
+template <binary_type _Bt, size_t _I, typename _L, typename _R, typename... _Args> auto
+result::sequence_assert(const _L& _lhs, const _R& _rhs, _Args&&... _args) -> result& {
+    if (!binary<_Bt, _L, _R>()(_lhs, _rhs)) {
+        report();
+        std::cout << "  " << _assertion << test::to_string<ANGLE>(_I, _I + 1) << test::to_string<PARENTHESES>(_lhs, _rhs) << std::endl;
+        count();
+    }
+    return sequence_assert<_Bt, _I + 1>(_rhs, std::forward<_Args>(_args)...);
 }
 template <typename _Ex> auto result::exception_assert(const _Ex& _e) -> result& {
     const std::string& _msg = get_exception_message();
     if (_exception_message != _msg) {
-        std::cout << _file << "(" << _line << ") FAILED!\n";
-        std::cout << "  " << _assertion << "(" << _expr << ")\n";
-        std::cout << "with expansion:\n";
-        std::cout << "  threw with (\"" << _msg << "\") expected (\"" << _exception_message << "\")" << std::endl;
-        ++_errors;
+        report();
+        std::cout << "  threw with " << test::to_string<PARENTHESES>(_msg) << " expected " << test::to_string<PARENTHESES>(_exception_message) << std::endl;
+        count();
     }
     return *this;
 }
 auto result::exception_failed() -> result& {
-    std::cout << _file << "(" << _line << ") FAILED!\n";
-    std::cout << "  " << _assertion << "(" << _expr << ")\n";
-    std::cout << "with expansion:\n";
-    std::cout << "  threw (\"" << get_exception_message() << "\") expected (" << _exception_type << ")" << std::endl;
-    ++_errors;
+    report();
+    std::cout << "  threw " << test::to_string<PARENTHESES>(get_exception_message()) << " expected " << test::to_string<PARENTHESES>(_exception_type) << std::endl;
+    count();
     return *this;
 }
 auto result::noexception_failed() -> result& {
-    std::cout << _file << "(" << _line << ") FAILED!\n";
-    std::cout << "  " << _assertion << "(" << _expr << ")\n";
-    std::cout << "with expansion:\n";
-    std::cout << "  threw (" << ") expected (" << _exception_type << ")" << std::endl;
-    ++_errors;
+    report();
+    std::cout << "  threw " << test::to_string<PARENTHESES>() << " expected " << test::to_string<PARENTHESES>(_exception_type) << std::endl;
+    count();
     return *this;
 }
 
@@ -342,11 +427,25 @@ auto result::get_exception_message() const -> std::string {
     catch (...) { return "unknown exception"; }
     return "";
 }
+auto result::report() const -> void {
+    std::cout << _file << '(' << _line << ')' << ' ' << "FAILED!" << '\n';
+    std::cout << "  " << _assertion << '(' << _expr << ')' << std::endl;
+}
+auto result::count() -> void {
+    switch (_level) {
+    case level::ERROR: { ++_errors; break; }
+    case level::FATAL: { ++_fatals; break; }
+    default: {}
+    }
+    if (_level == level::FATAL) {
+        throw fatal_exception();
+    }
+}
 
 }
 
 #define __ICY_REGISTER_CASE(f, label) \
-    ICY_CONSTEXPR(test::testcase::enroll(&f, label, __FILE__, __LINE__))
+    GLOBAL_EVAL(test::testcase::enroll(&f, label, __FILE__, __LINE__))
 
 #define __ICY_DECLARE_AND_REGISTER_CASE(f, label) \
     static void f(); \
@@ -357,43 +456,48 @@ auto result::get_exception_message() const -> std::string {
 #define __END while (false)
 
 // assert unary expression, may fail
-#define __UNARY_ASSERT(assertion, type, ...) \
-    test::result(__FILE__, __LINE__, assertion, ICY_STR(__VA_ARGS__)).unary_assert<type>(__VA_ARGS__)
+#define __UNARY_ASSERTION_IMPL(assertion, level, type, ...) \
+    test::result(__FILE__, __LINE__, level, assertion, ICY_STR(__VA_ARGS__)).unary_assert<type>(__VA_ARGS__)
 // assert binary expression, may fail
-#define __BINARY_ASSERT(assertion, type, ...) \
-    test::result(__FILE__, __LINE__, assertion, ICY_STR(__VA_ARGS__)).binary_assert<type>(__VA_ARGS__)
+#define __BINARY_ASSERTION_IMPL(assertion, level, type, ...) \
+    test::result(__FILE__, __LINE__, level, assertion, ICY_STR(__VA_ARGS__)).binary_assert<type>(__VA_ARGS__)
+// assert sequence expression, may fail
+#define __SEQUENTIAL_ASSERTION_IMPL(assertion, level, type, ...) \
+    test::result(__FILE__, __LINE__, level, assertion, ICY_STR(__VA_ARGS__)).sequence_assert<type, 0>(__VA_ARGS__)
 // assert exception expression, may fail
-#define __EXCEPTION_ASSERT(assertion, exception, message, e, ...) \
-    test::result(__FILE__, __LINE__, assertion, ICY_STR(__VA_ARGS__), ICY_STR(exception), message).exception_assert(e)
+#define __EXCEPTION_ASSERTION_IMPL(assertion, level, exception, message, e, ...) \
+    test::result(__FILE__, __LINE__, level, assertion, ICY_STR(__VA_ARGS__), ICY_STR(exception), message).exception_assert(e)
 
 // failed, exception handler
-#define __EXCEPTION_FAILED(assertion, exception, ...) \
-    test::result(__FILE__, __LINE__, assertion, ICY_STR(__VA_ARGS__), ICY_STR(exception)).exception_failed()
+#define __EXCEPTION_FAILURE_IMPL(assertion, level, exception, ...) \
+    test::result(__FILE__, __LINE__, level, assertion, ICY_STR(__VA_ARGS__), ICY_STR(exception)).exception_failed()
 // failed, noexception handler
-#define __NOEXCEPTION_FAILED(assertion, exception, ...) \
-    test::result(__FILE__, __LINE__, assertion, ICY_STR(__VA_ARGS__), ICY_STR(exception)).noexception_failed()
+#define __NOEXCEPTION_FAILURE_IMPL(assertion, level, exception, ...) \
+    test::result(__FILE__, __LINE__, level, assertion, ICY_STR(__VA_ARGS__), ICY_STR(exception)).noexception_failed()
 
-#define __EXPECT_UNARY(assertion, type, ...) \
-    __BEGIN { __UNARY_ASSERT(assertion, type, __VA_ARGS__); } __END
-#define __EXPECT_BINARY(assertion, type, ...) \
-    __BEGIN { __BINARY_ASSERT(assertion, type, __VA_ARGS__); } __END
-#define __EXPECT_NOTHROW(assertion, ...) \
+#define __UNARY_ASSERTION(assertion, level, type, ...) \
+    __BEGIN { __UNARY_ASSERTION_IMPL(assertion, level, type, __VA_ARGS__); } __END
+#define __BINARY_ASSERTION(assertion, level, type, ...) \
+    __BEGIN { __BINARY_ASSERTION_IMPL(assertion, level, type, __VA_ARGS__); } __END
+#define __SEQUENTIAL_ASSERTION(assertion, level, type, ...) \
+    __BEGIN { __SEQUENTIAL_ASSERTION_IMPL(assertion, level, type, __VA_ARGS__); } __END
+#define __NOTHROWN_ASSERTION(assertion, level, ...) \
     __BEGIN { \
         try { __VA_ARGS__; } \
-        catch (...) { __EXCEPTION_FAILED(assertion, , __VA_ARGS__); } \
+        catch (...) { __EXCEPTION_FAILURE_IMPL(assertion, level, __VA_ARGS__); } \
     } __END
-#define __EXPECT_THROW(assertion, exception, ...) \
+#define __THROWN_ASSERTION(assertion, level, exception, ...) \
     __BEGIN { \
         try { __VA_ARGS__; } catch (const exception& e) { break; } \
-        catch (...) { __EXCEPTION_FAILED(assertion, exception, __VA_ARGS__); } \
-        __NOEXCEPTION_FAILED(assertion, exception, __VA_ARGS__); \
+        catch (...) { __EXCEPTION_FAILURE_IMPL(assertion, level, exception, __VA_ARGS__); } \
+        __NOEXCEPTION_FAILURE_IMPL(assertion, level, exception, __VA_ARGS__); \
     } __END
-#define __EXPECT_THROW_WITH(assertion, exception, message, ...) \
+#define __THROWN2_ASSERTION(assertion, level, exception, message, ...) \
     __BEGIN { \
         try { __VA_ARGS__; } catch (const exception& e) { \
-            __EXCEPTION_ASSERT(assertion, exception, message, e, __VA_ARGS__); break; \
-        } catch (...) { __EXCEPTION_FAILED(assertion, exception, __VA_ARGS__); } \
-        __NOEXCEPTION_FAILED(assertion, exception, __VA_ARGS__); \
+            __EXCEPTION_ASSERTION_IMPL(assertion, level, exception, message, e, __VA_ARGS__); break; \
+        } catch (...) { __EXCEPTION_FAILURE_IMPL(assertion, level, exception, __VA_ARGS__); } \
+        __NOEXCEPTION_FAILURE_IMPL(assertion, level, exception, __VA_ARGS__); \
     } __END
 
 #define ICY_CASE(label) \
@@ -402,28 +506,74 @@ auto result::get_exception_message() const -> std::string {
 #define ICY_SUBCASE(label) \
     if (const test::subcase& ICY_ANONYMOUS(ICY_ANONYMOUS_SUBCASE_) = test::subcase(label, __FILE__, __LINE__))
 
-#define EXPECT_TRUE(expression) __EXPECT_UNARY("EXPECT_TRUE", test::TRUE, expression)
-#define EXPECT_FALSE(expression) __EXPECT_UNARY("EXPECT_FALSE", test::FALSE, expression)
-#define EXPECT_EQ(x, y) __EXPECT_BINARY("EXPECT_EQ", test::EQ, x, y)
-#define EXPECT_NE(x, y) __EXPECT_BINARY("EXPECT_NE", test::NE, x, y)
-#define EXPECT_GT(x, y) __EXPECT_BINARY("EXPECT_GT", test::GT, x, y)
-#define EXPECT_LT(x, y) __EXPECT_BINARY("EXPECT_LT", test::LT, x, y)
-#define EXPECT_GE(x, y) __EXPECT_BINARY("EXPECT_GE", test::GE, x, y)
-#define EXPECT_LE(x, y) __EXPECT_BINARY("EXPECT_LE", test::LE, x, y)
-#define EXPECT_NOTHROW(...) __EXPECT_NOTHROW("EXPECT_NOTHROW", __VA_ARGS__)
-#define EXPECT_THROW(exception, ...) __EXPECT_THROW("EXPECT_THROW", exception, __VA_ARGS__)
-#define EXPECT_THROW_WITH(exception, message, ...) __EXPECT_THROW_WITH("EXPECT_THROW_WITH", exception, message, __VA_ARGS__)
+#define ICY_SEQCASE(label)
+
+#define EXPECT_TRUE(expression) __UNARY_ASSERTION("EXPECT_TRUE", test::level::ERROR, test::TRUE, expression)
+#define EXPECT_FALSE(expression) __UNARY_ASSERTION("EXPECT_FALSE", test::level::ERROR, test::FALSE, expression)
+#define EXPECT_EQ(x, y) __BINARY_ASSERTION("EXPECT_EQ", test::level::ERROR, test::EQ, x, y)
+#define EXPECT_NE(x, y) __BINARY_ASSERTION("EXPECT_NE", test::level::ERROR, test::NE, x, y)
+#define EXPECT_GT(x, y) __BINARY_ASSERTION("EXPECT_GT", test::level::ERROR, test::GT, x, y)
+#define EXPECT_LT(x, y) __BINARY_ASSERTION("EXPECT_LT", test::level::ERROR, test::LT, x, y)
+#define EXPECT_GE(x, y) __BINARY_ASSERTION("EXPECT_GE", test::level::ERROR, test::GE, x, y)
+#define EXPECT_LE(x, y) __BINARY_ASSERTION("EXPECT_LE", test::level::ERROR, test::LE, x, y)
+
+#define EXPECT_INCR(...) __SEQUENTIAL_ASSERTION("EXPECT_INCR", test::level::ERROR, test::LE, __VA_ARGS__)
+#define EXPECT_STRICT_INCR(...) __SEQUENTIAL_ASSERTION("EXPECT_STRICT_INCR", test::level::ERROR, test::LT, __VA_ARGS__)
+#define EXPECT_DECR(...) __SEQUENTIAL_ASSERTION("EXPECT_DECR", test::level::ERROR, test::GE, __VA_ARGS__)
+#define EXPECT_STRICT_DECR(...) __SEQUENTIAL_ASSERTION("EXPECT_STRICT_DECR", test::level::ERROR, test::GT, __VA_ARGS__)
+#define EXPECT_EQUALS(...) __SEQUENTIAL_ASSERTION("EXPECT_EQUALS", test::level::ERROR, test::EQ, __VA_ARGS__)
+
+#define EXPECT_NOTHROW(...) __NOTHROWN_ASSERTION("EXPECT_NOTHROW", test::level::ERROR, __VA_ARGS__)
+#define EXPECT_THROW(exception, ...) __THROWN_ASSERTION("EXPECT_THROW", test::level::ERROR, exception, __VA_ARGS__)
+#define EXPECT_THROW_WITH(exception, message, ...) __THROWN2_ASSERTION("EXPECT_THROW_WITH", test::level::ERROR, exception, message, __VA_ARGS__)
+
+#define REQUIRE_TRUE(expression) __UNARY_ASSERTION("REQUIRE_TRUE", test::level::FATAL, test::TRUE, expression)
+#define REQUIRE_FALSE(expression) __UNARY_ASSERTION("REQUIRE_FALSE", test::level::FATAL, test::FALSE, expression)
+#define REQUIRE_EQ(x, y) __BINARY_ASSERTION("REQUIRE_EQ", test::level::FATAL, test::EQ, x, y)
+#define REQUIRE_NE(x, y) __BINARY_ASSERTION("REQUIRE_NE", test::level::FATAL, test::NE, x, y)
+#define REQUIRE_GT(x, y) __BINARY_ASSERTION("REQUIRE_GT", test::level::FATAL, test::GT, x, y)
+#define REQUIRE_LT(x, y) __BINARY_ASSERTION("REQUIRE_LT", test::level::FATAL, test::LT, x, y)
+#define REQUIRE_GE(x, y) __BINARY_ASSERTION("REQUIRE_GE", test::level::FATAL, test::GE, x, y)
+#define REQUIRE_LE(x, y) __BINARY_ASSERTION("REQUIRE_LE", test::level::FATAL, test::LE, x, y)
+
+#define REQUIRE_INCR(...) __SEQUENTIAL_ASSERTION("REQUIRE_INCR", test::level::FATAL, test::LE, __VA_ARGS__)
+#define REQUIRE_STRICT_INCR(...) __SEQUENTIAL_ASSERTION("REQUIRE_STRICT_INCR", test::level::FATAL, test::LT, __VA_ARGS__)
+#define REQUIRE_DECR(...) __SEQUENTIAL_ASSERTION("REQUIRE_DECR", test::level::FATAL, test::GE, __VA_ARGS__)
+#define REQUIRE_STRICT_DECR(...) __SEQUENTIAL_ASSERTION("REQUIRE_STRICT_DECR", test::level::FATAL, test::GT, __VA_ARGS__)
+#define REQUIRE_EQUALS(...) __SEQUENTIAL_ASSERTION("REQUIRE_EQUALS", test::level::FATAL, test::EQ, __VA_ARGS__)
+
+#define REQUIRE_NOTHROW(...) __NOTHROWN_ASSERTION("REQUIRE_NOTHROW", test::level::FATAL, __VA_ARGS__)
+#define REQUIRE_THROW(exception, ...) __THROWN_ASSERTION("REQUIRE_THROW", test::level::FATAL, exception, __VA_ARGS__)
+#define REQUIRE_THROW_WITH(exception, message, ...) __THROWN2_ASSERTION("REQUIRE_THROW_WITH", test::level::FATAL, exception, message, __VA_ARGS__)
 
 int main(int _argc, char** _argv) {
-    for (const auto& _c : test::testcase::cases()) {
-        test::subcase::build();
-        do {
-            test::subcase::begin();
-            _c.operator()();
-            test::subcase::end();
-        } while (!test::subcase::done());
+    try {
+        for (const auto& _c : test::testcase::cases()) {
+            test::subcase::build();
+            do {
+                test::subcase::begin();
+                _c.operator()();
+                test::subcase::end();
+            } while (!test::subcase::done());
+        }
+        return test::result::errors();
     }
-    return test::result::errors();
+    catch (const test::fatal_exception& _e) {
+        return test::result::fatals();
+    }
+    catch (const std::exception& _e) {
+        std::cerr << _e.what() << std::endl;
+    }
+    catch (const std::string& _e) {
+        std::cerr << _e << std::endl;
+    }
+    catch (const char* _e) {
+        std::cerr << _e << std::endl;
+    }
+    catch (...) {
+        std::cerr << "unknown exception" << std::endl;
+    }
+    return EXIT_FAILURE;
 }
 
 #endif // _ICY_TESTING_FRAMEWORK_TEST_HPP_
