@@ -23,6 +23,7 @@ template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typ
 template <typename _Vk, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct graph_basis;
 template <typename _Vk, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct multigraph_basis;
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct dijkstra;
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct bellman_ford;
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> struct floyd;
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> struct tarjan;
 }
@@ -586,6 +587,9 @@ protected:
     auto for_each(const key_type& _x, const key_type& _y, edge_modifier<void>&& modifier) -> void override;
     auto for_each(const key_type& _x, const key_type& _y, edge_visitor<void>&& visitor) const -> void override;    
 };
+}
+
+namespace __details__::graph { // @def __details__::graph::basis::algorithm
 /**
  * @brief dijkstra result wrapper
  */

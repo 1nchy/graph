@@ -118,12 +118,214 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::disconnect(const key_type& _x, co
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
 basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::clear() -> void {
     for (auto [_k, _v] : _vertices) { this->_M_deallocate_vertex(_v); }
-    for (auto _e : _edges) { this->_M_deallocate_edge(_e); }
+    for (auto* _e : _edges) { this->_M_deallocate_edge(_e); }
     _vertices.clear(); _edges.clear();
 }
 }
 
 namespace __details__::graph { // @implements basis::algorithm
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
+dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
+dijkstra(const base& _g, const key_type& _k, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g), _k(_k) {
+    if (!_g.contains(_k)) { return; }
+    // _s = {_k}, _u = all - {_k}
+    using element_type = std::pair<cost_type, key_type>;
+    auto greater_cost = [](const element_type& _x, const element_type& _y) -> bool {
+        return _x.first > _y.first;
+    };
+    std::priority_queue<element_type, std::vector<element_type>, decltype(greater_cost)> _q(greater_cost);
+    std::unordered_set<key_type> _u;
+    _u.reserve(_g.order() - 1);
+    for (const auto& [_key, _vertex] : _g.vertices()) {
+        if (_k == _key) { continue; }
+        _u.insert(_key);
+        cost_type _c = std::numeric_limits<cost_type>::max();
+        _g.for_each(_k, _key, [this, &_c, &_k, &visitor](const edge_type& _e) {
+            _c = std::min(_c, visitor(_e));
+            this->_predecessor[_e.other_key(_k)] = std::make_pair(_c, _k);
+        });
+        _q.emplace(_c, _key);
+    }
+    auto get_cost = [this, &_k](const key_type& _x) -> cost_type { // cost from `_k` to `_x`
+        if (_x == _k) { return 0; }
+        if (this->_predecessor.contains(_x)) {
+            return this->_predecessor.at(_x).first;
+        }
+        return std::numeric_limits<cost_type>::max();
+    };
+    /**
+     * @brief set cost into `_predecessor`
+     * @param _x the key
+     * @param _pre the predecessor key of the `_x`
+     * @param _c the cost from `_pre` to `_x`
+     */
+    auto set_cost = [this, &get_cost](const key_type& _x, const key_type& _pre, cost_type _c) -> void {
+        this->_predecessor[_x] = std::make_pair(get_cost(_pre) + _c, _pre);
+    };
+    while (!_q.empty()) {
+        const element_type _e = _q.top(); _q.pop();
+        if (!_u.contains(_e.second)) { continue; }
+        _u.erase(_e.second);
+        if (_e.first == std::numeric_limits<cost_type>::max()) { break; }
+        // update
+        const auto _outs = _g.get_vertex(_e.second)->out();
+        for (auto _i = _outs.first; _i != _outs.second; ++_i) { // _i -> <key_type, edge_type*>
+            if (!_u.contains(_i->first)) { continue; }
+            const cost_type _cost = visitor(*_i->second); // cost from `_e.second` to `_i->first`
+            if (greater_than(get_cost(_i->first), get_cost(_e.second), _cost)) {
+                set_cost(_i->first, _e.second, _cost);
+                _q.emplace(_cost, _i->first);
+            }
+        }
+    }
+}
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::trail(const key_type& _x, trailer&& _trailer) const -> void {
+    if (!_g.contains(_x)) {
+        throw std::out_of_range("dijkstra::trail(...)");
+    }
+    std::function<void(const key_type&)> _M_dijkstra_trail = [&_M_dijkstra_trail, this, _trailer] (const key_type& _x) -> void {
+        if (this->_k == _x) {
+            _trailer(this->_k);
+            return;
+        }
+        if (!this->_predecessor.contains(_x)) { return; }
+        _M_dijkstra_trail(this->_predecessor.at(_x).second);
+        _trailer(_x);
+    };
+    _M_dijkstra_trail(_x);
+}
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x) const -> cost_type {
+    if (!_g.contains(_x)) {
+        throw std::out_of_range("dijkstra::cost(...)");
+    }
+    if (_k == _x) { return 0; }
+    if (_predecessor.contains(_x)) {
+        return _predecessor.at(_x).first;
+    }
+    return std::numeric_limits<cost_type>::max();
+}
+
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
+floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
+floyd(const base& _g, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g) {
+    for (const auto& [_k, _v] : _g.vertices()) {
+        _intermediary.insert(_k);
+    }
+    auto get_cost = [this, &_g](const key_type& _i, const key_type& _j) -> cost_type {
+        assert(_g.contains(_i) && _g.contains(_j));
+        if (_i == _j) { return 0; }
+        else if (!this->_intermediary.adjacent(_i, _j)) { return std::numeric_limits<cost_type>::max(); }
+        else { return this->_intermediary.get_edge(_i, _j)->value().first; }
+    };
+    auto set_intermediary = [this, &_g](const key_type& _i, const key_type& _j, cost_type _cost, const key_type& _k) -> void {
+        assert(_g.contains(_i) && _g.contains(_j) && _i != _j);
+        if (!this->_intermediary.adjacent(_i, _j)) { this->_intermediary.connect(_i, _j, _cost, _k); }
+        else { this->_intermediary.get_edge(_i, _j)->set_value(std::make_pair(_cost, _k)); }
+    };
+    for (const auto& [_i, _v] : _g.vertices()) {
+        const auto _outs = _v->out();
+        for (auto _o = _outs.first; _o != _outs.second; ++_o) {
+            const key_type& _ik = _i;
+            const key_type& _ok = _o->first;
+            const cost_type _cost = visitor(*_o->second);
+            if (get_cost(_ik, _ok) > _cost) {
+                set_intermediary(_ik, _ok, _cost, _ik); //for graph and multigraph
+            }
+        }
+    }
+    for (const auto& [_k, _kv] : _g.vertices()) {
+        for (const auto& [_i, _iv] : _g.vertices()) {
+            if (_i == _k) { continue; }
+            for (const auto& [_j, _jv] : _g.vertices()) {
+                if (_i == _j || _j == _k) continue;
+                const cost_type _cost_ij = get_cost(_i, _j);
+                const cost_type _cost_ik = get_cost(_i, _k);
+                const cost_type _cost_kj = get_cost(_k, _j);
+                // if (_cost_ij > _cost_ik + _cost_kj) { // overflow
+                if (greater_than(_cost_ij, _cost_ik, _cost_kj)) {
+                    // assert(_i != _k && _j != _k);
+                    set_intermediary(_i, _j, _cost_ik + _cost_kj, _k);
+                }
+            }
+        }
+    }
+}
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
+    if (!_g.contains(_x) || !_g.contains(_y)) {
+        throw std::out_of_range("floyd::trail(...)");
+    }
+    if (!_intermediary.contains(_x) || !_intermediary.contains(_y)) {
+        return; // would not reach
+    }
+    if (_x == _y) {
+        _trailer(_x);
+        return;
+    }
+    if (!_intermediary.adjacent(_x, _y)) { return; }
+    _trailer(_x);
+    std::function<void(const _Vk&, const _Vk&, std::function<void(const _Vk&)>&&)> _M_floyd_trail =
+    [&_M_floyd_trail, this] (const _Vk& _x, const _Vk& _y, std::function<void(const _Vk&)>&& _trailer) -> void {
+        const _Vk& _k = this->_intermediary.get_edge(_x, _y)->value().second;
+        if (_x == _k) { _trailer(_y); return; }
+        _M_floyd_trail(_x, _k, std::move(_trailer));
+        _M_floyd_trail(_k, _y, std::move(_trailer));
+    };
+    _M_floyd_trail(_x, _y, std::move(_trailer));
+}
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
+floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x, const key_type& _y) const -> cost_type {
+    if (!_g.contains(_x) || !_g.contains(_y)) {
+        throw std::out_of_range("floyd::cost(...)");
+    }
+    if (_x == _y) { return 0; }
+    if (_intermediary.adjacent(_x, _y)) {
+        return _intermediary.get_edge(_x, _y)->value().first;
+    }
+    return std::numeric_limits<cost_type>::max();
+}
+
+template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc>
+tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::tarjan(const base& _g) : _g(_g) {
+    static_assert(_Gd == UNDIRECTED);
+    std::unordered_set<key_type> _s;
+    for (const auto& [_k, _v] : _g.vertices()) {
+        _s.insert(_k);
+    }
+    while (!_s.empty()) {
+        const key_type& _k = *_s.cbegin();
+        std::unordered_map<key_type, size_t> _dfn, _low;
+        std::vector<key_type> _trail;
+        _g.dfs(_k, [&_dfn, &_low, &_trail, &_s](const key_type& _k, const vertex_type& _v) {
+            _trail.emplace_back(_k);
+            _s.erase(_k);
+            _dfn[_k] = _low[_k] = _dfn.size() + 1;
+        }, [&_dfn, &_low, &_trail](const key_type& _k, const vertex_type& _v) {
+            _trail.pop_back();
+            const auto _ins = _v.in();
+            for (auto _i = _ins.first; _i != _ins.second; ++_i) {
+                if (!_trail.empty() && _i->first == _trail.back()) { continue; }
+                _low[_k] = std::min(_low[_k], _low[_i->first]);
+            }
+        }, [&_dfn, &_low, &_trail, this](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _low[_k] = std::min(_low[_k], _low[_u]);
+            if (_low[_u] >= _dfn[_k]) {
+                this->_vertices.insert(_k);
+            }
+        });
+        for (const auto& [_k, _v] : _g.vertices()) {
+            const auto _outs = _v->out();
+            for (auto _o = _outs.first; _o != _outs.second; ++_o) {
+                if (_v->count_to(_o->first) == 1 && _low[_o->first] > _dfn[_k]) {
+                    this->_edges.insert(_o->second);
+                }
+            }
+        }
+    }
+}
+
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> template <typename _R> auto
 basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::dijkstra(const key_type& _k, edge_visitor<_R>&& visitor) const -> graph::dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _R, _Hash, _Alloc> {
     static_assert(std::is_arithmetic<_R>::value);
@@ -142,6 +344,9 @@ basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::tarjan() const -> graph::tarjan<_
     static_assert(_Gd == UNDIRECTED);
     return graph::tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>(*this);
 }
+}
+
+namespace __details__::graph { // @implements basis::algorithm
 template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc> auto
 basis<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::bfs(const key_type& _key, vertex_modifier<void>&& modifier) -> size_t {
     if (!contains(_key)) { return 0; }
@@ -369,206 +574,6 @@ multigraph_basis<_Vk, _Vv, _Ev, _Gd, _Hash, _Alloc>::for_each(const key_type& _x
     const auto _range = this->get_edge(_x, _y);
     for (auto _e = _range.first; _e != _range.second; ++_e) {
         visitor(*_e->second);
-    }
-}
-
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
-dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
-dijkstra(const base& _g, const key_type& _k, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g), _k(_k) {
-    if (!_g.contains(_k)) { return; }
-    // _s = {_k}, _u = all - {_k}
-    using element_type = std::pair<cost_type, key_type>;
-    auto greater_cost = [](const element_type& _x, const element_type& _y) -> bool {
-        return _x.first > _y.first;
-    };
-    std::priority_queue<element_type, std::vector<element_type>, decltype(greater_cost)> _q(greater_cost);
-    std::unordered_set<key_type> _u;
-    _u.reserve(_g.order() - 1);
-    for (const auto& [_key, _vertex] : _g.vertices()) {
-        if (_k == _key) { continue; }
-        _u.insert(_key);
-        cost_type _c = std::numeric_limits<cost_type>::max();
-        _g.for_each(_k, _key, [this, &_c, &_k, &visitor](const edge_type& _e) {
-            _c = std::min(_c, visitor(_e));
-            this->_predecessor[_e.other_key(_k)] = std::make_pair(_c, _k);
-        });
-        _q.emplace(_c, _key);
-    }
-    auto get_cost = [this, &_k](const key_type& _x) -> cost_type { // cost from `_k` to `_x`
-        if (_x == _k) { return 0; }
-        if (this->_predecessor.contains(_x)) {
-            return this->_predecessor.at(_x).first;
-        }
-        return std::numeric_limits<cost_type>::max();
-    };
-    /**
-     * @brief set cost into `_predecessor`
-     * @param _x the key
-     * @param _pre the predecessor key of the `_x`
-     * @param _c the cost from `_pre` to `_x`
-     */
-    auto set_cost = [this, &get_cost](const key_type& _x, const key_type& _pre, cost_type _c) -> void {
-        this->_predecessor[_x] = std::make_pair(get_cost(_pre) + _c, _pre);
-    };
-    while (!_q.empty()) {
-        const element_type _e = _q.top(); _q.pop();
-        if (!_u.contains(_e.second)) { continue; }
-        _u.erase(_e.second);
-        if (_e.first == std::numeric_limits<cost_type>::max()) { break; }
-        // update
-        const auto _outs = _g.get_vertex(_e.second)->out();
-        for (auto _i = _outs.first; _i != _outs.second; ++_i) { // _i -> <key_type, edge_type*>
-            if (!_u.contains(_i->first)) { continue; }
-            const cost_type _cost = visitor(*_i->second); // cost from `_e.second` to `_i->first`
-            if (greater_than(get_cost(_i->first), get_cost(_e.second), _cost)) {
-                set_cost(_i->first, _e.second, _cost);
-                _q.emplace(_cost, _i->first);
-            }
-        }
-    }
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
-dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::trail(const key_type& _x, trailer&& _trailer) const -> void {
-    if (!_g.contains(_x)) {
-        throw std::out_of_range("dijkstra::trail(...)");
-    }
-    std::function<void(const key_type&)> _M_dijkstra_trail = [&_M_dijkstra_trail, this, _trailer] (const key_type& _x) -> void {
-        if (this->_k == _x) {
-            _trailer(this->_k);
-            return;
-        }
-        if (!this->_predecessor.contains(_x)) { return; }
-        _M_dijkstra_trail(this->_predecessor.at(_x).second);
-        _trailer(_x);
-    };
-    _M_dijkstra_trail(_x);
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
-dijkstra<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x) const -> cost_type {
-    if (!_g.contains(_x)) {
-        throw std::out_of_range("dijkstra::cost(...)");
-    }
-    if (_k == _x) { return 0; }
-    if (_predecessor.contains(_x)) {
-        return _predecessor.at(_x).first;
-    }
-    return std::numeric_limits<cost_type>::max();
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc>
-floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::
-floyd(const base& _g, typename base::template edge_visitor<cost_type>&& visitor) : _g(_g) {
-    for (const auto& [_k, _v] : _g.vertices()) {
-        _intermediary.insert(_k);
-    }
-    auto get_cost = [this, &_g](const key_type& _i, const key_type& _j) -> cost_type {
-        assert(_g.contains(_i) && _g.contains(_j));
-        if (_i == _j) { return 0; }
-        else if (!this->_intermediary.adjacent(_i, _j)) { return std::numeric_limits<cost_type>::max(); }
-        else { return this->_intermediary.get_edge(_i, _j)->value().first; }
-    };
-    auto set_intermediary = [this, &_g](const key_type& _i, const key_type& _j, cost_type _cost, const key_type& _k) -> void {
-        assert(_g.contains(_i) && _g.contains(_j) && _i != _j);
-        if (!this->_intermediary.adjacent(_i, _j)) { this->_intermediary.connect(_i, _j, _cost, _k); }
-        else { this->_intermediary.get_edge(_i, _j)->set_value(std::make_pair(_cost, _k)); }
-    };
-    for (const auto& [_i, _v] : _g.vertices()) {
-        const auto _outs = _v->out();
-        for (auto _o = _outs.first; _o != _outs.second; ++_o) {
-            const key_type& _ik = _i;
-            const key_type& _ok = _o->first;
-            const cost_type _cost = visitor(*_o->second);
-            if (get_cost(_ik, _ok) > _cost) {
-                set_intermediary(_ik, _ok, _cost, _ik); //for graph and multigraph
-            }
-        }
-    }
-    for (const auto& [_k, _kv] : _g.vertices()) {
-        for (const auto& [_i, _iv] : _g.vertices()) {
-            if (_i == _k) { continue; }
-            for (const auto& [_j, _jv] : _g.vertices()) {
-                if (_i == _j || _j == _k) continue;
-                const cost_type _cost_ij = get_cost(_i, _j);
-                const cost_type _cost_ik = get_cost(_i, _k);
-                const cost_type _cost_kj = get_cost(_k, _j);
-                // if (_cost_ij > _cost_ik + _cost_kj) { // overflow
-                if (greater_than(_cost_ij, _cost_ik, _cost_kj)) {
-                    // assert(_i != _k && _j != _k);
-                    set_intermediary(_i, _j, _cost_ik + _cost_kj, _k);
-                }
-            }
-        }
-    }
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
-floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::trail(const key_type& _x, const key_type& _y, trailer&& _trailer) const -> void {
-    if (!_g.contains(_x) || !_g.contains(_y)) {
-        throw std::out_of_range("floyd::trail(...)");
-    }
-    if (!_intermediary.contains(_x) || !_intermediary.contains(_y)) {
-        return; // would not reach
-    }
-    if (_x == _y) {
-        _trailer(_x);
-        return;
-    }
-    if (!_intermediary.adjacent(_x, _y)) { return; }
-    _trailer(_x);
-    std::function<void(const _Vk&, const _Vk&, std::function<void(const _Vk&)>&&)> _M_floyd_trail =
-    [&_M_floyd_trail, this] (const _Vk& _x, const _Vk& _y, std::function<void(const _Vk&)>&& _trailer) -> void {
-        const _Vk& _k = this->_intermediary.get_edge(_x, _y)->value().second;
-        if (_x == _k) { _trailer(_y); return; }
-        _M_floyd_trail(_x, _k, std::move(_trailer));
-        _M_floyd_trail(_k, _y, std::move(_trailer));
-    };
-    _M_floyd_trail(_x, _y, std::move(_trailer));
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Cost, typename _Hash, typename _Alloc> auto
-floyd<_Vk, _Gt, _Vv, _Ev, _Gd, _Cost, _Hash, _Alloc>::cost(const key_type& _x, const key_type& _y) const -> cost_type {
-    if (!_g.contains(_x) || !_g.contains(_y)) {
-        throw std::out_of_range("floyd::cost(...)");
-    }
-    if (_x == _y) { return 0; }
-    if (_intermediary.adjacent(_x, _y)) {
-        return _intermediary.get_edge(_x, _y)->value().first;
-    }
-    return std::numeric_limits<cost_type>::max();
-}
-template <typename _Vk, type _Gt, typename _Vv, typename _Ev, direction _Gd, typename _Hash, typename _Alloc>
-tarjan<_Vk, _Gt, _Vv, _Ev, _Gd, _Hash, _Alloc>::tarjan(const base& _g) : _g(_g) {
-    static_assert(_Gd == UNDIRECTED);
-    std::unordered_set<key_type> _s;
-    for (const auto& [_k, _v] : _g.vertices()) {
-        _s.insert(_k);
-    }
-    while (!_s.empty()) {
-        const key_type& _k = *_s.cbegin();
-        std::unordered_map<key_type, size_t> _dfn, _low;
-        std::vector<key_type> _trail;
-        _g.dfs(_k, [&_dfn, &_low, &_trail, &_s](const key_type& _k, const vertex_type& _v) {
-            _trail.emplace_back(_k);
-            _s.erase(_k);
-            _dfn[_k] = _low[_k] = _dfn.size() + 1;
-        }, [&_dfn, &_low, &_trail](const key_type& _k, const vertex_type& _v) {
-            _trail.pop_back();
-            const auto _ins = _v.in();
-            for (auto _i = _ins.first; _i != _ins.second; ++_i) {
-                if (!_trail.empty() && _i->first == _trail.back()) { continue; }
-                _low[_k] = std::min(_low[_k], _low[_i->first]);
-            }
-        }, [&_dfn, &_low, &_trail, this](const key_type& _k, const vertex_type& _v, const key_type& _u) {
-            _low[_k] = std::min(_low[_k], _low[_u]);
-            if (_low[_u] >= _dfn[_k]) {
-                this->_vertices.insert(_k);
-            }
-        });
-        for (const auto& [_k, _v] : _g.vertices()) {
-            const auto _outs = _v->out();
-            for (auto _o = _outs.first; _o != _outs.second; ++_o) {
-                if (_v->count_to(_o->first) == 1 && _low[_o->first] > _dfn[_k]) {
-                    this->_edges.insert(_o->second);
-                }
-            }
-        }
     }
 }
 }
