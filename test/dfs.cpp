@@ -93,9 +93,10 @@ ICY_CASE("graph preorder and postorder") {
     using edge_type = typename decltype(_g)::edge_type;
     std::vector<key_type> _preorder, _preorder2;
     std::vector<key_type> _postorder, _postorder2;
+    std::vector<key_type> _backtrace, _backtrace2;
     std::unordered_set<key_type> _s;
     std::function<void(const key_type&)> dfs =
-    [&dfs, &_g, &_preorder2, &_postorder2, &_s] (const key_type& _k) -> void {
+    [&dfs, &_g, &_preorder2, &_postorder2, &_backtrace2, &_s] (const key_type& _k) -> void {
         if (_s.contains(_k)) { return; }
         const vertex_type* const _v = _g.get_vertex(_k);
         _preorder2.push_back(_k);
@@ -107,29 +108,38 @@ ICY_CASE("graph preorder and postorder") {
             _vec.push_back(_out->first);
         }
         for (auto _i = _vec.crbegin(); _i != _vec.crend(); ++_i) {
-            dfs(*_i);
+            if (!_s.contains(*_i)) {
+                dfs(*_i);
+                _backtrace2.push_back(_k);
+            }
         }
         _postorder2.push_back(_k);
     };
     ICY_SUBCASE("from A") {
-        _g.dfs("A", [&_preorder](const key_type& _k, const vertex_type& _v) {
+        const auto _count = _g.dfs("A", [&_preorder](const key_type& _k, const vertex_type& _v) {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _backtrace.push_back(_k);
         });
         dfs("A");
         EXPECT_EQ(_preorder, _preorder2);
         EXPECT_EQ(_postorder, _postorder2);
+        EXPECT_EQ(_backtrace, _backtrace2);
     }
     ICY_SUBCASE("from F") {
-        _g.dfs("F", [&_preorder](const key_type& _k, const vertex_type& _v) {
+        const auto _count = _g.dfs("F", [&_preorder](const key_type& _k, const vertex_type& _v) {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _backtrace.push_back(_k);
         });
         dfs("F");
         EXPECT_EQ(_preorder, _preorder2);
         EXPECT_EQ(_postorder, _postorder2);
+        EXPECT_EQ(_backtrace, _backtrace2);
     }
 }
 ICY_CASE("multigraph preorder and postorder") {
@@ -138,9 +148,10 @@ ICY_CASE("multigraph preorder and postorder") {
     using edge_type = typename decltype(_g)::edge_type;
     std::vector<key_type> _preorder, _preorder2;
     std::vector<key_type> _postorder, _postorder2;
+    std::vector<key_type> _backtrace, _backtrace2;
     std::unordered_set<key_type> _s;
     std::function<void(const key_type&)> dfs =
-    [&dfs, &_g, &_preorder2, &_postorder2, &_s] (const key_type& _k) -> void {
+    [&dfs, &_g, &_preorder2, &_postorder2, &_backtrace2, &_s] (const key_type& _k) -> void {
         if (_s.contains(_k)) { return; }
         const vertex_type* const _v = _g.get_vertex(_k);
         _preorder2.push_back(_k);
@@ -152,38 +163,52 @@ ICY_CASE("multigraph preorder and postorder") {
             _vec.push_back(_out->first);
         }
         for (auto _i = _vec.crbegin(); _i != _vec.crend(); ++_i) {
-            dfs(*_i);
+            if (!_s.contains(*_i)) {
+                dfs(*_i);
+                _backtrace2.push_back(_k);
+            }
         }
         _postorder2.push_back(_k);
     };
     ICY_SUBCASE("from B") {
-        _g.dfs("B", [&_preorder](const key_type& _k, const vertex_type& _v) {
+        const auto _count = _g.dfs("B", [&_preorder](const key_type& _k, const vertex_type& _v) {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _backtrace.push_back(_k);
         });
         dfs("B");
         EXPECT_EQ(_preorder, _preorder2);
         EXPECT_EQ(_postorder, _postorder2);
+        EXPECT_EQ(_backtrace, _backtrace2);
     }
     ICY_SUBCASE("from E") {
-        _g.dfs("E", [&_preorder](const key_type& _k, const vertex_type& _v) {
+        const auto _count = _g.dfs("E", [&_preorder](const key_type& _k, const vertex_type& _v) {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _backtrace.push_back(_k);
         });
         dfs("E");
         EXPECT_EQ(_preorder, _preorder2);
         EXPECT_EQ(_postorder, _postorder2);
+        EXPECT_EQ(_backtrace, _backtrace2);
     }
     ICY_SUBCASE("from I") {
-        _g.dfs("I", [&_preorder](const key_type& _k, const vertex_type& _v) {
+        const auto _count = _g.dfs("I", [&_preorder](const key_type& _k, const vertex_type& _v) {
             _preorder.push_back(_k);
         }, [&_postorder](const key_type& _k, const vertex_type& _v) {
             _postorder.push_back(_k);
+        }, [&_backtrace](const key_type& _k, const vertex_type& _v, const key_type& _u) {
+            _backtrace.push_back(_k);
         });
         dfs("I");
+        std::cout << test::to_string(_preorder) << std::endl;
+        std::cout << test::to_string(_postorder) << std::endl;
         EXPECT_EQ(_preorder, _preorder2);
         EXPECT_EQ(_postorder, _postorder2);
+        EXPECT_EQ(_backtrace, _backtrace2);
     }
 }
